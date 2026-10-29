@@ -3,17 +3,12 @@
 Files here are written but NOT installed. Nothing runs until you do the steps below.
 
 - `run-daily.sh` waits for the network (about 2 minutes), exits if today's file exists, runs `pipeline/run.mjs` under `caffeinate`, deploys, sends a notification. Logs to `pipeline/logs/daily-YYYY-MM-DD.log`.
-- `deploy.sh` runs `npx wrangler pages deploy site --project-name levelup`.
+- `deploy.sh` commits `site/data` and `pipeline/state` and pushes to `main` on GitHub (`git@github-personal`, as golakikyaakshay17@gmail.com). Cloudflare builds the `levelup` Worker from GitHub (`npx wrangler deploy`, config in `wrangler.jsonc`).
 - `com.levelup.daily.plist` is the LaunchAgent: runs at login and at 06:00 (launchd runs a missed 06:00 job when the Mac wakes).
 
 ## One-time Cloudflare setup
 
-```
-cd /Users/akshaygolakiya/Documents/native-apps/levelup
-npx wrangler login
-npx wrangler pages project create levelup --production-branch main
-./ops/deploy.sh        # first deploy by hand, check the URL it prints
-```
+Already done in the dashboard: Workers & Pages -> levelup, Builds connected to akshaygolakiya/levelup, branch `main`, deploy command `npx wrangler deploy`. If Settings -> Builds says the project is disconnected from Git, reconnect GitHub there. Live site: https://levelup.golakiyaakshay17.workers.dev
 
 ## Install
 

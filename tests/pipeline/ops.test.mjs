@@ -1,4 +1,4 @@
-// Sections D and C8: ops scripts, run in a temp copy with stubbed curl/osascript/npx (nothing real is notified, installed or deployed).
+// Sections D and C8: ops scripts, run in a temp copy with stubbed curl/osascript/git (nothing real is notified, installed or deployed).
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
@@ -15,13 +15,14 @@ beforeEach(() => { S.set = 1; S.behavior = {}; S.hn = { mode: 'ok', ids: [] }; }
 const todayLocal = () => { const n = new Date(), p = x => String(x).padStart(2, '0'); return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`; };
 
 // Stub commands that record their invocations to $STUB_LOG.
-function stubs(sb, { curlOk = true, npxOk = true } = {}) {
+function stubs(sb, { curlOk = true, gitOk = true } = {}) {
   const dir = join(sb.root, 'stubs'); mkdirSync(dir);
   const log = join(sb.root, 'stub.log');
   const mk = (name, body) => { writeFileSync(join(dir, name), `#!/bin/bash\n${body}\n`); chmodSync(join(dir, name), 0o755); };
   mk('osascript', `echo "osascript $*" >> "${log}"`);
   mk('curl', `echo "curl" >> "${log}"; ${curlOk ? 'exit 0' : 'exit 7'}`);
-  mk('npx', `echo "npx $*" >> "${log}"; ${npxOk ? 'exit 0' : 'echo "Authentication error: not logged in" >&2; exit 1'}`);
+  // `diff --cached --quiet` exits 1 = there are staged changes to commit.
+  mk('git', `echo "git $*" >> "${log}"; case "$*" in *"diff --cached"*) exit 1;; esac; ${gitOk ? 'exit 0' : 'echo "ssh: Could not resolve hostname" >&2; exit 1'}`);
   return { dir, log, lines: () => (existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(Boolean) : []) };
 }
 function runDaily(sb, st, extra = {}) {
@@ -84,12 +85,12 @@ describe('D1/D2/D3/D5 and C8', () => {
     const r = await daily(sb, st).done;
     assert.equal(r.code, 1, r.out);
     assert.ok(st.lines().some(l => /osascript .*failed/.test(l)), st.lines().join('\n'));
-    assert.ok(!st.lines().some(l => l.startsWith('npx')), 'no deploy after a failure');
+    assert.ok(!st.lines().some(l => l.startsWith('git')), 'no commit or push after a failure');
     assert.equal(existsSync(join(sb.logs, '.run.lock')), false);
     sb.scenario({ delayMs: 30 }); // the "next trigger" succeeds
     const r2 = await daily(sb, st).done;
     assert.equal(r2.code, 0, r2.out); assert.ok(existsSync(join(sb.data, `${todayLocal()}.json`)));
-    assert.ok(st.lines().some(l => l.startsWith('npx wrangler pages deploy site --project-name levelup')));
+    assert.ok(st.lines().some(l => / add site\/data pipeline\/state/.test(l)) && st.lines().some(l => / commit /.test(l)) && st.lines().some(l => / push .*origin main/.test(l)));
     assert.ok(st.lines().some(l => /osascript .*ready/.test(l)));
   }));
   test('D3 usage limit and logged-out exit codes get their own notification text', async () => sandboxed(async sb => {
@@ -100,18 +101,18 @@ describe('D1/D2/D3/D5 and C8', () => {
     await daily(sb, st).done;
     assert.ok(st.lines().some(l => /not logged in/i.test(l)));
   }));
-  test('D5 deploy failure (e.g. wrangler not logged in): clear message, non-zero exit, data untouched, notification', async () => sandboxed(async sb => {
-    const st = stubs(sb, { npxOk: false }); sb.scenario({ delayMs: 30 });
+  test('D5 deploy failure (e.g. git push rejected): clear message, non-zero exit, data untouched, notification', async () => sandboxed(async sb => {
+    const st = stubs(sb, { gitOk: false }); sb.scenario({ delayMs: 30 });
     const r = await daily(sb, st).done;
     assert.equal(r.code, 1, r.out);
-    assert.match(dailyLog(sb), /Deploy failed\. Your data in site\/ is untouched\..*wrangler login/s);
+    assert.match(dailyLog(sb), /Deploy failed\. Your data in site\/ is untouched\./);
     assert.ok(existsSync(join(sb.data, `${todayLocal()}.json`)), 'generated data is kept');
     assert.ok(st.lines().some(l => /osascript .*deploy failed/i.test(l)));
   }));
-  test('D5 deploy.sh on its own propagates the failure and prints the login hint', async () => sandboxed(async sb => {
-    const st = stubs(sb, { npxOk: false });
+  test('D5 deploy.sh on its own propagates the failure and prints the hint', async () => sandboxed(async sb => {
+    const st = stubs(sb, { gitOk: false });
     const r = await bash(join(sb.root, 'ops', 'deploy.sh'), sb.env({ LEVELUP_STUB_PATH: st.dir }), sb.root).done;
-    assert.equal(r.code, 1); assert.match(r.out, /npx wrangler login/);
+    assert.equal(r.code, 1); assert.match(r.out, /Deploy failed/);
   }));
   test('C8 two runs at once: the second sees the lock and exits without running; a stale lock is recovered', async () => sandboxed(async sb => {
     const st = stubs(sb); sb.scenario({ delayMs: 600 });
