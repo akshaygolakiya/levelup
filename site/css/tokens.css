@@ -1,0 +1,161 @@
+/* LevelUp design tokens. The iOS app mirrors these names; keep them semantic. */
+:root {
+  /* spacing (4pt grid) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 72px;
+  --gutter: 16px;
+
+  /* radii */
+  --radius-sm: 10px; --radius-md: 16px; --radius-lg: 24px; --radius-xl: 32px; --radius-pill: 999px;
+
+  /* blur radii (0 when transparency is reduced) */
+  --blur-chrome: 28px; --blur-card: 18px; --blur-reading: 8px;
+
+  /* type */
+  --font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-reading-serif: "Iowan Old Style", "Charter", "Georgia", "Cambria", serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --text-scale: 1;
+  --fs-xs: calc(0.75rem * var(--text-scale));
+  --fs-sm: calc(0.875rem * var(--text-scale));
+  --fs-md: calc(1rem * var(--text-scale));
+  --fs-lg: calc(1.125rem * var(--text-scale));
+  --fs-xl: calc(1.375rem * var(--text-scale));
+  --fs-2xl: calc(1.75rem * var(--text-scale));
+  --fs-3xl: calc(2.25rem * var(--text-scale));
+  --lh-tight: 1.2; --lh-body: 1.6; --lh-reading: 1.75;
+  --font-reading: var(--font-ui);
+
+  /* motion */
+  --dur-fast: 140ms; --dur-base: 280ms; --dur-slow: 520ms; --dur-mesh: 48s;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.45, 0.5, 1);
+
+  /* layout */
+  --tap-min: 44px;
+  --sidebar-w: 232px;
+  --tabbar-h: 64px;
+  --content-w: 760px;
+  --reading-w: 680px;
+
+  /* accent hues: Tech = indigo/blue, English = rose */
+  --tech-accent: #4a57e0;      /* fills, rings, white text on top */
+  --english-accent: #c2255f;
+  --on-accent: #ffffff;
+}
+
+/* ---------- light ---------- */
+:root, :root[data-theme="light"] {
+  color-scheme: light;
+  --bg-base: #eceffa;
+  --mesh-a: rgba(99, 102, 241, 0.38);
+  --mesh-b: rgba(244, 114, 182, 0.30);
+  --mesh-c: rgba(45, 212, 191, 0.26);
+  --mesh-d: rgba(251, 191, 36, 0.20);
+
+  --surface-solid: #f6f7fc;
+  --glass-bg: rgba(255, 255, 255, 0.52);
+  --glass-bg-strong: rgba(255, 255, 255, 0.72);
+  --glass-bg-reading: rgba(255, 255, 255, 0.90);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-border-subtle: rgba(20, 24, 40, 0.10);
+  --glass-highlight: rgba(255, 255, 255, 0.85);
+  --glass-shadow: 0 8px 32px rgba(40, 48, 110, 0.12), 0 1px 2px rgba(40, 48, 110, 0.08);
+
+  --text: #14181f;
+  --text-muted: #4a5263;
+  --text-faint: #646d7e;
+  --reading-text: #161a22;
+
+  --tech-accent-ink: #3640b8;
+  --tech-accent-soft: rgba(74, 87, 224, 0.14);
+  --english-accent-ink: #a81c52;
+  --english-accent-soft: rgba(194, 37, 95, 0.12);
+
+  --success: #12794a; --success-soft: rgba(18, 121, 74, 0.14);
+  --warning-soft: rgba(217, 119, 6, 0.16);
+  --focus-ring: #1d4ed8;
+  --filler-bg: rgba(245, 158, 11, 0.32);
+  --scrim: rgba(15, 18, 32, 0.38);
+  --flame: #f97316;
+}
+
+/* ---------- dark ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg-base: #0a0d19;
+    --mesh-a: rgba(79, 70, 229, 0.48);
+    --mesh-b: rgba(190, 24, 93, 0.30);
+    --mesh-c: rgba(13, 148, 136, 0.28);
+    --mesh-d: rgba(30, 64, 175, 0.34);
+    --surface-solid: #151a2b;
+    --glass-bg: rgba(28, 33, 56, 0.50);
+    --glass-bg-strong: rgba(24, 29, 50, 0.72);
+    --glass-bg-reading: rgba(17, 21, 38, 0.90);
+    --glass-border: rgba(255, 255, 255, 0.14);
+    --glass-border-subtle: rgba(255, 255, 255, 0.10);
+    --glass-highlight: rgba(255, 255, 255, 0.10);
+    --glass-shadow: 0 10px 36px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --text: #eef1f8;
+    --text-muted: #b7bfd1;
+    --text-faint: #98a2b8;
+    --reading-text: #eceff7;
+    --tech-accent-ink: #aeb7ff;
+    --tech-accent-soft: rgba(129, 140, 248, 0.20);
+    --english-accent-ink: #ffa3c2;
+    --english-accent-soft: rgba(244, 114, 182, 0.18);
+    --success: #5fd9a0; --success-soft: rgba(95, 217, 160, 0.16);
+    --warning-soft: rgba(251, 191, 36, 0.18);
+    --focus-ring: #93b4ff;
+    --filler-bg: rgba(251, 191, 36, 0.34);
+    --scrim: rgba(0, 0, 0, 0.55);
+    --flame: #fb923c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-base: #0a0d19;
+  --mesh-a: rgba(79, 70, 229, 0.48);
+  --mesh-b: rgba(190, 24, 93, 0.30);
+  --mesh-c: rgba(13, 148, 136, 0.28);
+  --mesh-d: rgba(30, 64, 175, 0.34);
+  --surface-solid: #151a2b;
+  --glass-bg: rgba(28, 33, 56, 0.50);
+  --glass-bg-strong: rgba(24, 29, 50, 0.72);
+  --glass-bg-reading: rgba(17, 21, 38, 0.90);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-border-subtle: rgba(255, 255, 255, 0.10);
+  --glass-highlight: rgba(255, 255, 255, 0.10);
+  --glass-shadow: 0 10px 36px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.4);
+  --text: #eef1f8;
+  --text-muted: #b7bfd1;
+  --text-faint: #98a2b8;
+  --reading-text: #eceff7;
+  --tech-accent-ink: #aeb7ff;
+  --tech-accent-soft: rgba(129, 140, 248, 0.20);
+  --english-accent-ink: #ffa3c2;
+  --english-accent-soft: rgba(244, 114, 182, 0.18);
+  --success: #5fd9a0; --success-soft: rgba(95, 217, 160, 0.16);
+  --warning-soft: rgba(251, 191, 36, 0.18);
+  --focus-ring: #93b4ff;
+  --filler-bg: rgba(251, 191, 36, 0.34);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --flame: #fb923c;
+}
+
+/* ---------- user overrides (set by JS from prefs + OS settings) ---------- */
+:root[data-font="serif"] { --font-reading: var(--font-reading-serif); }
+
+/* Flat solid fallback: no blur, opaque surfaces */
+:root[data-transparency="reduce"] {
+  --blur-chrome: 0px; --blur-card: 0px; --blur-reading: 0px;
+  --glass-bg: var(--surface-solid);
+  --glass-bg-strong: var(--surface-solid);
+  --glass-bg-reading: var(--surface-solid);
+  --glass-highlight: transparent;
+  --glass-border: var(--glass-border-subtle);
+}
+:root[data-motion="reduce"] {
+  --dur-fast: 1ms; --dur-base: 1ms; --dur-slow: 1ms;
+}

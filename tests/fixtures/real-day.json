@@ -1,0 +1,1129 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "generatedAt": "2026-10-29T05:32:49.351Z",
+  "promptsVersion": "1.0.0",
+  "tech": {
+    "deepReads": [
+      {
+        "id": "20a2590281",
+        "tldr": "GitHub has moved 99.99999% of its repositories so they live in both its own data centres and Azure, but the busiest 0.00001% are held back because a 25ms cross-region round trip throttles their writes. GitHub is narrowing quorum serialization from the whole repository to individual references and adding an ephemeral \"virtual replica\" backed by Azure Blob Storage, so reads can scale separately from writes.",
+        "beforeYouRead": [
+          {
+            "term": "Quorum / majority commit",
+            "explain": "A replication scheme where a write counts as committed once a majority of replicas acknowledge it. This lets the system tolerate some failed replicas without losing data."
+          },
+          {
+            "term": "Git reference (ref)",
+            "explain": "A named pointer, such as a branch or tag, to a commit. A push usually moves one or more refs to new commits."
+          },
+          {
+            "term": "Serialization / repository-wide lock",
+            "explain": "Forcing operations to run one at a time. A lock over the whole repository means only one write can be in flight, regardless of which ref it touches."
+          },
+          {
+            "term": "Decoupling storage from compute",
+            "explain": "Keeping durable data in a shared store such as object storage, so the servers that process requests can be added, removed or tuned independently of where the data lives."
+          },
+          {
+            "term": "Ephemeral node",
+            "explain": "A server that keeps no persistent state of its own. It can be discarded and replaced because the source of truth lives elsewhere."
+          }
+        ],
+        "keyIdeas": [
+          "The first repository copy landed in Azure Central US in August 2025. Today most repositories have two of their five replicas in Azure, and Azure serves about half of Git traffic.",
+          "Spokes uses preferential routing to send traffic to a replica in the same region and availability zone. As each replica moves, more traffic shifts to Azure, until the old region receives no requests.",
+          "Spokes' quorum needs only a majority to commit, but it waits for every healthy replica, up to a timeout. Combined with a repository-wide lock held until commit, the slowest replica sets both write latency and the throughput ceiling.",
+          "The Azure region is about 1,000 miles from GitHub's data centres, so each round trip is about 25ms, and a write needs multiple round trips. A repository already near its write ceiling cannot absorb that cost and would fall further behind with every push.",
+          "Git's consistency guarantee applies per reference: once an update is accepted, no client should see an older value. Scoping the quorum to individual refs lets writes to different refs run concurrently, and internal tests with realistic traffic showed 3-4x higher throughput at lower latency.",
+          "Repositories see 100-1,000 reads per write. A \"virtual write replica\" joins the quorum, so writes are acknowledged only once they are durable in Azure Blob Storage. It serves no reads, coalesces transactions on disjoint refs into one set of network I/Os, and currently handles compaction.",
+          "Virtual read replicas warm their cache from Blob Storage and serve reads without joining the quorum. Spokes handles well over 100 billion operations per day, and GitHub says the current commit protocol \"won't take it to the next billion and beyond\" repositories."
+        ],
+        "seniorLens": "The key insight is that the correctness boundary (per ref) was much narrower than the locking boundary (per repository), so most serialization was unnecessary. The gains, however, depend on the write pattern: writes contending on a shared ref, such as a hot default branch, still queue behind each other, and every write still pays the cross-region latency. The article also says only that refs are independent \"in most cases\" and does not explain how pushes that update several refs together keep their semantics under per-ref ordering. Waiting for every healthy replica rather than just a majority amplifies tail latency, and the article does not discuss tightening that timeout. The virtual write replica adds a little latency to every write and, for now, concentrates compaction in one ephemeral node, so its failure and recovery behaviour matters but is not described. Virtual read replicas reconcile in the background, which implies they can lag behind the latest state, and the authors say they suit only some read workloads until reconciliation moves in-line. Finally, sequencing the work as \"move the data first, then evolve the architecture\" was a deliberate risk trade-off under a hard power-capacity ceiling. The authors acknowledge the quorum still bounds write throughput.",
+        "whyItMatters": "This shows how lock scope and synchronous replication across regions turn network distance directly into a throughput ceiling, and how matching the lock to the actual consistency unit raises that ceiling. It also shows a staged path from stateful replicas to object-storage-backed, ephemeral compute at very large scale.",
+        "forYou": "When a system slows under load, ask what the real consistency unit is (a row, a key, a ref) and whether your locks are broader than it. Remember that synchronous waits on the slowest replica set your p99 latency. For read-heavy services, consider separating read capacity from the write path using a durable shared store, but plan for the staleness that background reconciliation introduces.",
+        "questions": [
+          "Why did a 25ms round trip lower the throughput ceiling of a busy repository, and not just its latency, under the old Spokes design?",
+          "What does the virtual write replica do differently from a normal replica, and how does it avoid becoming a throughput bottleneck?"
+        ],
+        "tags": [
+          "git",
+          "distributed-systems",
+          "replication",
+          "cloud-migration"
+        ],
+        "verifyNotes": "tldr: 'blocked' -> 'held back' (source wording). keyIdeas: replaced unsupported 'fatal' with source's 'can't absorb / fall further behind'; noted 3-4x was with realistic traffic; 'writes' -> 'transactions' and 'network I/Os' for coalescing; completed quote ('and beyond'). seniorLens: 'waste' -> 'unnecessary'; clarified every write (not just contending ones) pays cross-region latency; softened 'the real' amplifier; 'a little latency' and 'for now' compaction per source; stale reads framed as implication; 'deadline' -> 'hard power-capacity ceiling'; quote corrected to 'evolve the architecture'. whyItMatters: 'removes that ceiling' -> 'raises' (source says quorum still bounds throughput).",
+        "kind": "deep",
+        "title": "The bridge to agent-scale Git infrastructure",
+        "source": "GitHub Engineering",
+        "url": "https://github.blog/engineering/architecture-optimization/the-bridge-to-agent-scale-git-infrastructure/",
+        "track": "systems",
+        "publishedAt": "2026-10-21T16:00:00.000Z",
+        "minutes": 9,
+        "whySelected": "GitHub explains moving almost every repository to Azure, using per-reference quorums and object-storage reads, which is a large-scale storage migration case study."
+      },
+      {
+        "id": "95d5916fd6",
+        "tldr": "From 27 August to 9 September 2026, 155 Workers AI responses from GLM-5.3 contained other customers' data, all for prompts longer than 681,280 tokens. The cause was a context window larger than the prefill KV cache pool combined with an SGLang bug that let rejected requests through the disaggregated prefill/decode handoff.",
+        "beforeYouRead": [
+          {
+            "term": "KV cache",
+            "explain": "The stored attention key/value tensors that an LLM computes for the prompt and earlier tokens, so they are not recomputed for each new token. Here it lives in GPU memory as a shared pool of fixed-size pages."
+          },
+          {
+            "term": "Disaggregated prefill/decode",
+            "explain": "Prefill (processing the prompt) and decode (generating output tokens) run on separate GPU pools. The prefill side builds the KV cache and transfers it to the decode side."
+          },
+          {
+            "term": "RDMA",
+            "explain": "Remote direct memory access: one machine writes directly into another machine's memory over the network. Here it is done via Mooncake, and once writes are sent they cannot be recalled."
+          },
+          {
+            "term": "Tenant isolation",
+            "explain": "The guarantee that one customer's data and requests are never visible to another customer on shared infrastructure."
+          },
+          {
+            "term": "Use-after-free style bugs",
+            "explain": "A resource such as a memory page is freed or reused while something else still uses it, so data leaks or gets corrupted, often with no error raised."
+          }
+        ],
+        "keyIdeas": [
+          "GLM-5.3 was deployed with a 1,048,576-token context window, but the prefill KV pool held only 681,280 tokens. Cloudflare knew about the mismatch but expected the engine to return an error for over-length prompts.",
+          "SGLang sizes the KV pool at startup from GPU memory left after loading the weights, and the advertised context length is a separate setting. Nothing forces the two to agree.",
+          "The rejection path (Req.set_finish_with_abort) stored the error in to_finish, not finished_reason, so finished() returned False. Both the prefill and decode admission queues therefore treated the rejected request as live.",
+          "Prefill ran a one-token placeholder, sent one KV page and signalled the transfer complete. Decode then attended over all its reserved pages (8 in the article's example), but only the first had been written by this request; the rest held stale data from earlier requests, because pages are not zeroed between requests. The client received HTTP 200 instead of 400.",
+          "Gadi Evron of Knostic reported the issue via HackerOne on 8 September. An incident was declared at 13:22 UTC on 9 September, the model was set to private at 14:00, and it was restored at 19:40 the same day.",
+          "The fixes were a configuration change, which gave a prefill pool of about 2.04 million tokens (roughly twice the context length), and an engine patch that retires rejected requests at the disaggregation admission queue (proposed as #38704). Related upstream fixes are #36988 and #38935. The same bug had already been reported upstream as issue #30233 on 6 July 2026.",
+          "Hardening included extended deferred KV release, bounded Mooncake transfer batches, load-balancer changes so a client disconnect no longer aborts a request mid-transfer, and pre-deploy checks of KV pool size against context length. Cloudflare recommends that operators update to SGLang v0.5.22 or later."
+        ],
+        "seniorLens": "This was a fail-open error path in a performance-critical shared-memory system, and the root cause was as much process as code. The team knew the pool was smaller than the context window and accepted HTTP 200s as proof the system worked, without validating output content. The responses looked normal, with coherent text and prompt_tokens matching the long prompt, but they arrived faster than a full prefill should take, which was a detectable signal. Not zeroing pages is a deliberate performance trade-off, and it moves all isolation responsibility onto page ownership tracking that spans tasks within a node and RDMA writes across nodes. Here, admission queues that checked finished() rather than whether a request was rejected were enough to break tenant isolation. Cloudflare rightly concluded that enlarging the pool alone is fragile, because quantization, tensor parallelism, CUDA graph sizes or a new model version silently change the pool size. That is why they added defence in depth: an admission-time reject and a check that transferred token counts match the reserved count. The upstream report (#30233) predated the incident by about two months, yet Cloudflare only noticed it while investigating, even though it had been flagging similar issues to SGLang since v0.5.10. The \"no evidence of deliberate exploitation\" conclusion rests on timing and volume patterns, which is reasonable but not proof.",
+        "whyItMatters": "In multi-tenant LLM serving, a reused KV page is customer data, so a minor error-handling bug becomes a cross-customer data leak. Mismatched configuration values that nothing reconciles are a common and easily missed source of such failures.",
+        "forYou": "Test the content of responses, not just status codes, especially at configuration limits. Make sure error paths fail closed and that error state is visible to every component that checks liveness. Assert invariants between related settings, such as pool size and context length, against the running system before deploying. Whenever you reuse buffers or pooled resources across users, treat ownership and lifetime tracking as a security boundary.",
+        "questions": [
+          "Why did a rejected over-length request get admitted by both the prefill and decode queues in disaggregated mode?",
+          "Why did Cloudflare patch the SGLang rejection path even though enlarging the KV pool to about 2.04 million tokens already prevented the bug?"
+        ],
+        "tags": [
+          "llm-inference",
+          "security",
+          "incident-postmortem",
+          "multi-tenancy"
+        ],
+        "verifyNotes": "keyIdeas: marked the 8-page/7-stale figures as the article's diagram example rather than a fixed value. seniorLens: 'organisational' -> 'process'; corrected the symptoms claim, since matching prompt_tokens and coherent output made responses look normal and only the fast response time was a signal; 'visible to anyone looking' removed; the faulty check was attributed to the admission queues rather than page ownership tracking; replaced the unsupported 'sat for two months / not tracking dependencies' moral with source facts (Cloudflare noticed #30233 during investigation and had been flagging similar issues since v0.5.10). tldr: added 'disaggregated' for precision.",
+        "kind": "deep",
+        "title": "Cross-request KV cache exposure in the GLM-5.3 Workers AI model, and our remediation with SGLang",
+        "source": "Cloudflare Blog",
+        "url": "https://blog.cloudflare.com/kv-cache-exposure-remediation/",
+        "track": "systems",
+        "publishedAt": "2026-10-26T22:01:23.000Z",
+        "minutes": 19,
+        "whySelected": "A real incident write-up on KV cache pages leaking across requests in LLM serving, covering both inference infrastructure and tenant isolation."
+      },
+      {
+        "id": "c8cde9a23b",
+        "tldr": "Postgres ON DELETE CASCADE makes deletion look simple, but a large cascade runs as one big transaction that can stall migrations, write huge amounts of WAL, seq-scan unindexed foreign keys and break logical replication. Soft deletes plus batched background deletes keep transactions short and bounded.",
+        "beforeYouRead": [
+          {
+            "term": "ON DELETE CASCADE",
+            "explain": "A foreign key option that makes Postgres automatically delete child rows when the parent row they reference is deleted, all inside the same transaction."
+          },
+          {
+            "term": "WAL (write-ahead log)",
+            "explain": "Postgres's log of every change, written before data files are updated. Replicas consume it, so a large transaction produces a large amount of WAL they must process."
+          },
+          {
+            "term": "RowExclusiveLock vs AccessExclusiveLock",
+            "explain": "Table-level locks. DML such as DELETE and INSERT takes RowExclusiveLock. Many ALTER TABLE operations need AccessExclusiveLock, which conflicts with every other lock on the table."
+          },
+          {
+            "term": "Logical replication",
+            "explain": "A Postgres publisher streams row-level changes for the tables in a publication to subscribers. On the subscriber, an apply worker replays those changes."
+          },
+          {
+            "term": "Replica identity",
+            "explain": "How subscribers identify which row an UPDATE or DELETE refers to. By default this is the primary key, and a table needs a usable one to publish deletes."
+          },
+          {
+            "term": "Soft delete",
+            "explain": "Marking a row as deleted, for example with a deleted_at timestamp, instead of physically removing it. The physical delete happens later."
+          }
+        ],
+        "keyIdeas": [
+          "A cascading DELETE issues deletes for every matching child row in one transaction, generating dead tuples, index updates and WAL. While it runs, it holds RowExclusiveLock on every table involved.",
+          "A harmless-looking migration, such as adding a nullable text column, requests AccessExclusiveLock. It cannot start until the cascade finishes, and subsequent INSERTs and queries on that table pile up behind the waiting ALTER TABLE. In the article's scenario, nearly all writes to most tables time out.",
+          "Mitigation for migrations: set a short lock_timeout and retry. The migration is then retried until it finds a window where it can run, instead of stalling traffic behind it.",
+          "In larger environments, PlanetScale has seen a single cascading transaction write hundreds of gigabytes of WAL, leaving other transactions waiting behind synchronous replication. If a child table's foreign key is unindexed, a single-row parent delete can trigger full table sequential scans.",
+          "In logical replication, the subscriber's apply worker runs with session_replication_role = replica. By default this skips the internal triggers that check foreign keys and run their cascades. Subscriber-only child tables, such as user_activity_rollups, or children left out of a hand-picked table list, end up orphaned with no error or warning.",
+          "On the publisher, a cascade child with no primary key and the default replica identity (user_sessions) in a publication that includes deletes makes the parent delete fail with 'cannot delete from table \"user_sessions\" because it does not have a replica identity and publishes deletes'. This happens even when no child rows exist, and the error hint is to set REPLICA IDENTITY with ALTER TABLE.",
+          "If you cascade and replicate, publish the whole foreign key tree (FOR ALL TABLES, or FOR TABLES IN SCHEMA on Postgres 15+ listing every relevant schema). Clean up subscriber-only children separately, and use an orphan check to find what slipped through.",
+          "A soft delete (UPDATE customer_organizations SET deleted_at = now()) replicates as a one-row UPDATE and can also help restore accidentally deleted data. A background reaper later runs the real deletes, for example after keeping rows for 30 days. It can run more slowly at times of low traffic, in careful batches, optionally followed by VACUUM.",
+          "General rule: keep transactions short, small and bounded. The article suggests hundreds to low thousands of rows per transaction as a starting point, often far fewer, tuned to your workload."
+        ],
+        "seniorLens": "The core issue is unbounded blast radius. The cost of one DELETE depends on how much data hangs off a row, so it grows with customer size and with every new table someone adds to the cascade tree, without the calling code changing. The lock-queue effect is the subtle part. The cascade does not block INSERTs directly. The waiting AccessExclusiveLock request does, because later requests queue behind it. That is why lock_timeout on DDL is the cheap, immediate defence. The article also notes that DELETE CASCADE does not move as easily as other large deletes to a DROP TABLE based approach. Soft deletes are not free. Every read, including reads on child tables, must check deleted_at, which requires up-front application work. You also now own a reaper job and a retention policy. The replication section shows that cascades are not re-run on subscribers, so subscriber-only schema can silently diverge. The article gives a starting batch size, but it does not give concrete lock_timeout values or retry policies, and it does not explain how to enforce deleted_at filtering consistently. You would have to design those yourself.",
+        "whyItMatters": "A schema convenience chosen early can turn a routine migration into a production-wide write outage once data volumes grow. It can also silently break referential integrity on logical replicas.",
+        "forYou": "Audit your schema: check that every foreign key column is indexed, and map which tables cascade from your top-level entities, such as organizations and users. Add a short lock_timeout with retries to your migration tooling. For organization- or account-level deletion, prefer a deleted_at flag plus a slow, batched reaper over a single cascading DELETE. If you use logical replication, confirm every table in the foreign key tree is published and has a usable replica identity, and run orphan checks.",
+        "questions": [
+          "Why does a cascading DELETE combined with an ALTER TABLE adding a nullable column cause INSERTs on the table to time out, and which lock types are involved?",
+          "What setting does the logical replication apply worker run with, and what happens to a subscriber-only child table when its parent rows are deleted through replication?"
+        ],
+        "tags": [
+          "postgres",
+          "database-design",
+          "replication",
+          "migrations"
+        ],
+        "verifyNotes": "Cut tldr from 3 sentences to 2. Removed 'until it finishes' from the lock claim and softened the outage wording to match the article's scenario. Corrected the lock_timeout description to match the source. Separated two fixes the draft conflated: the replica identity error's own fix (set REPLICA IDENTITY) and the orphaning fix (publish the whole tree, clean up subscriber-only children separately, run orphan checks). Softened reaper details from 'does' to 'can'. Made VACUUM optional and added the source's restore benefit. Moved batch-size guidance into its own idea with the 'often far fewer, tune' caveat. Moved the DROP TABLE note out of the soft-delete costs, where it was misattributed. Replaced 'throttled' and 'tenant' with the source's wording and added orphan checks to forYou.",
+        "kind": "deep",
+        "title": "I don't trust ON DELETE CASCADE",
+        "source": "PlanetScale",
+        "url": "https://planetscale.com/blog/i-dont-like-delete-cascade",
+        "track": "databases",
+        "publishedAt": "2026-10-21T00:00:00.000Z",
+        "minutes": 6,
+        "whySelected": "Shows how a one-line schema convenience can cause lock-heavy outages and what safer bulk-delete patterns look like."
+      },
+      {
+        "id": "2a8881dbb8",
+        "tldr": "Shopify groups listings of the same real-world product across billions of listings in millions of stores under one Universal Product Identifier (UPI). It retrieves candidate pairs with embeddings and approximate nearest-neighbour search, scores them with three tiered models, then clusters the graph using size-bounded union-find partitioning and hierarchical merging with a learned, precision-first merge rule.",
+        "beforeYouRead": [
+          {
+            "term": "Approximate nearest-neighbour (ANN) search",
+            "explain": "Finding vectors close to a query vector without comparing against every vector. It is fast but can miss some true neighbours."
+          },
+          {
+            "term": "Cross-encoder",
+            "explain": "A model that reads two inputs together in one pass, so it can attend to differences between them. A bi-encoder instead embeds each input separately and compares the vectors."
+          },
+          {
+            "term": "GBDT",
+            "explain": "Gradient-boosted decision trees: an ensemble of trees trained on tabular features. It is cheap to run at very large scale."
+          },
+          {
+            "term": "Union-find",
+            "explain": "A data structure that tracks which component each element belongs to and merges components efficiently. It is the standard way to compute connected components."
+          },
+          {
+            "term": "Hierarchical agglomerative clustering (HAC)",
+            "explain": "A method that starts with small clusters and repeatedly merges pairs of clusters into larger ones according to a merge rule."
+          },
+          {
+            "term": "Non-transitivity",
+            "explain": "Pairwise judgements can say A matches B and B matches C while rejecting A and C. Simply joining everything connected by a path would therefore over-merge."
+          }
+        ],
+        "keyIdeas": [
+          "Instead of asking an LLM for globally consistent product labels, the system asks a narrower question: should these two listings share a UPI? Pairwise judgements can be non-transitive, so plain connected components are not used.",
+          "Candidates come from embeddings and ANN search over billions of vectors, which still leaves trillions of candidate pairs. A true match dropped by the approximation or the shortlist limit never reaches the scorers. The listing stays searchable under its own identifier, but it is not grouped with other stores' listings until a later build finds the connection.",
+          "L1 is a GBDT using cheap pair features: embedding distances, title and vendor similarity, and price relationships. It scores trillions of pairs and also helps decide which pairs deserve more expensive models, which is a related but different objective from providing merge evidence.",
+          "L2 is a fine-tuned multilingual E5 cross-encoder over titles, vendor names, predicted categories, URLs and shop names. It can separate 'for iPhone 15' from 'for iPhone 15 Pro', but it does not read descriptions. L3 is a fine-tuned open-model reranker that adds images and richer metadata for selected comparisons and returns a match score, not an explanation.",
+          "A larger LLM judge labels sampled pairs and is validated against human annotations, and stronger-model scores train cheaper models. Thresholds are set separately per scorer, and their combined effect is evaluated on clustering, because better pair scores only matter if they produce better product groups.",
+          "The graph is split with bounded union-find: process edges from highest to lowest score and merge components only if the result stays within a budget. The budget is the sum of node degrees, not product count. To scale, parallel workers first reduce their edge partitions to spanning forests with ordinary union-find, and the final bounded pass still uses degrees from the original graph.",
+          "Within each component, HAC uses a GBDT merge model with support, coverage, cohesion and contradiction features (contradiction means low-scoring L2/L3 evidence). It is tuned for precision first, then recall. Training data was built iteratively: run the builder, sample its merge proposals, label them with the LLM judge, retrain."
+        ],
+        "seniorLens": "This is a classic cost cascade. Spend cheap compute everywhere and expensive compute only where it changes decisions, and push LLM reasoning into offline label generation rather than serving. The asymmetric-error framing drives the design. A false merge mixes two entire product groups, while a missed merge just leaves them apart, hence precision-first thresholds and an explicit contradiction feature. Three risks are acknowledged but not quantified. First, recall lost at ANN retrieval is not recovered until a later build. Second, partition boundaries can separate true matches, and the spanning-forest shortcut does not guarantee the same components as processing every edge. Third, LLM judge errors can propagate into models trained on its labels. The iterative retraining loop addresses a real trap: a learned policy changes the intermediate clusters it later sees, so training only on the previous policy's decisions does not cover those situations. The article does not give precision or recall numbers, component budgets, ANN parameters, or L2 and L3 volumes. The text provided also does not discuss whether UPIs stay stable across rebuilds as the graph changes, which matters for anyone consuming the IDs.",
+        "whyItMatters": "Entity resolution at billion scale cannot rely on brute-force comparison or on running an LLM on every pair. This shows a practical architecture that combines retrieval, tiered scoring and bounded graph clustering to keep cost manageable while protecting precision.",
+        "forYou": "The same pattern can apply to deduplicating users, companies or catalogue items in your own systems. Use embeddings plus ANN to generate candidates, a cheap feature-based classifier for the first pass, and a cross-encoder only for pairs the first pass selects for closer review. Use an LLM to label training data rather than to score every pair. When results feed a graph, avoid naive connected components, and decide explicitly whether false merges or missed merges cost you more.",
+        "questions": [
+          "What inputs does each of L1, L2 and L3 use, and what limitation of L2 is part of the reason pairs are sent to L3?",
+          "In the bounded union-find partitioning, in what order are edges processed and how is the component-size budget measured?"
+        ],
+        "tags": [
+          "machine-learning",
+          "entity-resolution",
+          "graph-clustering",
+          "system-design"
+        ],
+        "verifyNotes": "Cut tldr from 3 sentences to 2 and added the UPI acronym. Added the two causes of missed matches (approximation and shortlist limit) and clarified that a later build can still find the connection. Changed L1's goals from 'separate' to the source's 'related but different' and 'helps decide'. Noted that L3 runs only on selected comparisons. Clarified how success is evaluated. Added that workers use ordinary union-find. Corrected 'unrecoverable within a build' to the source's 'not recovered until a later build'. Replaced 'per-tier volumes' with 'L2 and L3 volumes', because L1's volume (trillions) is given. Limited the UPI-stability gap to the text provided. Replaced the 'close calls' framing with first-pass selection.",
+        "kind": "deep",
+        "title": "Cross-store product clustering across millions of stores",
+        "source": "Shopify Engineering",
+        "url": "https://shopify.engineering/catalog-clustering-part-ii",
+        "track": "systems",
+        "publishedAt": "2026-10-20T13:48:59.000Z",
+        "minutes": 16,
+        "whySelected": "Matching products across millions of stores using tiered models, graph partitioning and learned merges, a concrete large-scale data and ML pipeline."
+      }
+    ],
+    "quickReads": [
+      {
+        "id": "5c61ddd850",
+        "tldr": "A recycling object pool turns a logical use-after-free into aliasing of same-typed memory instead of type confusion, which gives defined, deterministic behaviour unless the object stores an inline enum. TigerStyle goes further: allocate a fixed maximum number of objects at startup, never allocate after initialization, and optionally keep a constant count of objects by filling unused slots with a no-op 'reserved' value.",
+        "keyIdea": "Decide the maximum load up front (for example --orders-max), allocate all of it at startup, reject surplus requests, and design so the system performs acceptably when every slot is in use. Not reaching acceptable performance at the limit is a bug.",
+        "whyItMatters": "Without strict limits, a system at capacity fails catastrophically (for example, the kernel's OOM killer terminates the whole process or its supervisor) or suffers gray failure. With static allocation, the system may fail to start if memory is short, but once running it handles overload gracefully, and constant work makes performance predictable.",
+        "tags": [
+          "memory-safety",
+          "static-allocation",
+          "systems-design"
+        ],
+        "verifyNotes": "Replaced 'deterministic rather than exploitable' with the source's 'defined, deterministic behaviour'. Marked the reserved-slot approach as an alternative, as the source presents it. Clarified the static-allocation trade-off (may fail to start, but handles overload gracefully).",
+        "kind": "quick",
+        "title": "Static Allocation, Constant Work",
+        "source": "matklad",
+        "url": "https://matklad.github.io/2026/09/02/static-allocation-constant-work.html",
+        "track": "design",
+        "publishedAt": "2026-09-02T00:00:00.000Z",
+        "minutes": 7,
+        "whySelected": "matklad on static allocation and constant-work design, a core idea for predictable, overload-resistant systems."
+      },
+      {
+        "id": "be270d1902",
+        "tldr": "A small custom fuzzer that compares the Rust regex crate against regex_lite as an oracle found another bug in an older version (regex-automata 0.4.15) and then the known '.abb|b' on 'zabb' bug, but nothing in the latest version. Effective generative testing relies on small inputs, memory re-use for speed, and randomizing the input distributions themselves (swarm testing).",
+        "keyIdea": "Test algorithms against an oracle (an independent implementation that gives the known right answer) and generate small, tricky inputs from randomized distributions. When a bug escapes your fuzzer, treat that as a bug in the fuzzer and fix the fuzzer before you fix the code.",
+        "whyItMatters": "Even a plain PRNG is very effective if you put it to good use, and it is part of your job to give a reliable system an oracle. For example, TigerBeetle exposed internal timestamps through its API to make it easier for Jepsen to find bugs.",
+        "tags": [
+          "testing",
+          "fuzzing",
+          "rust"
+        ],
+        "verifyNotes": "Shortened the tldr from 3 sentences to 2 and corrected the order in which the bugs were found. Removed the unsupported condition 'when inputs are small and feature-focused' from the PRNG claim. Restated the TigerBeetle example as the source describes it.",
+        "kind": "quick",
+        "title": "Finding Bugs",
+        "source": "matklad",
+        "url": "https://matklad.github.io/2026/09/19/finding-bugs.html",
+        "track": "design",
+        "publishedAt": "2026-09-19T00:00:00.000Z",
+        "minutes": 13,
+        "whySelected": "An evidence-based discussion of whether randomised (generative) tests find more bugs than example-based tests."
+      },
+      {
+        "id": "c1afa36953",
+        "tldr": "Two critical PHP vulnerabilities, CVE-2026-109618 and CVE-2026-109619, allow remote code execution on servers running PHP 5.4 or later, and experts say working exploits exist and the flaws are already being exploited in the wild. Fixes are in PHP 8.5.12, 8.4.27, 8.3.36 and 8.2.35.",
+        "keyIdea": "A flaw in core PHP reaches every application built on it. Censys counted about 2.58 million internet-facing hosts and 54.9 million web properties running PHP, and Wiz says frontier AI models lowered the barrier to building the complex exploit chain.",
+        "whyItMatters": "Wiz compares this to Log4Shell and expects organizations to struggle to patch for some time, with likely mass exploitation to install web shells.",
+        "tags": [
+          "security",
+          "php",
+          "vulnerabilities"
+        ],
+        "verifyNotes": "Shortened the tldr from 3 sentences to 2. Attributed the exploitation claims to experts, as the source does.",
+        "kind": "quick",
+        "title": "Widespread PHP Flaw May Cause Many Site Outages Today",
+        "source": "Krebs on Security",
+        "url": "https://krebsonsecurity.com/2026/10/widespread-php-flaw-may-cause-many-site-outages-today/",
+        "track": "security",
+        "publishedAt": "2026-10-21T15:26:07.000Z",
+        "minutes": 4,
+        "whySelected": "A widespread PHP flaw forcing urgent upgrades across most of the web, useful for patch-management and outage awareness."
+      },
+      {
+        "id": "efb9381f0c",
+        "tldr": "September 2026 was the first month of bi-weekly Chrome and Firefox releases, with Chrome 153–154, Firefox 155–157 and Safari 27 reaching stable. Many features became Baseline Newly available, including progress(), alpha(), revert-rule, scroll anchoring, sizes=\"auto\" and async-iterable, transferable ReadableStream.",
+        "keyIdea": "Most new Baseline features this month arrived because Safari 27 or Firefox 155 completed cross-browser support. Examples include the alpha() relative color function, revert-rule (roll back to the value the property would have without the current style rule) and <image> values in light-dark().",
+        "whyItMatters": "Features that reach Baseline Newly available are supported across Chrome, Firefox and Safari.",
+        "tags": [
+          "frontend",
+          "css",
+          "web-platform"
+        ],
+        "verifyNotes": "Removed customizable <select> as a Baseline example; the source says only that Safari 27 joins Chrome, not that it is Baseline. Replaced it with <image> values in light-dark(). Removed the overstated claim that you can 'rely on' these features.",
+        "kind": "quick",
+        "title": "New to the web platform in September",
+        "source": "web.dev",
+        "url": "https://web.dev/blog/web-platform-09-2026?hl=en",
+        "track": "frontend",
+        "publishedAt": "2026-10-02T07:00:00.000Z",
+        "minutes": 8,
+        "whySelected": "A concise roundup of the browser features that shipped to stable and beta in September."
+      },
+      {
+        "id": "66b01ef311",
+        "tldr": "gopls v0.24.0 and the VS Code Go extension v0.56.0 support interactive refactoring, built on a proposed LSP capability that lets a language server ask the user for input before it computes edits. The capability was designed with the Dart team as an open standard for all languages and editors.",
+        "keyIdea": "Almost every LSP code transformation takes no parameters, so when context was not enough, servers had to apply a default or skip the transformation; for example, 'Add struct tags' always produced json tags in camelCase. A standard multi-step dialog mechanism enables parameterized refactorings such as Move Declaration, Change Signature, Implement Interface and Modify Struct Tags.",
+        "whyItMatters": "Putting user input into the protocol, rather than into editor-specific dialogs, means each server improvement benefits every LSP client, including Neovim and Emacs.",
+        "tags": [
+          "go",
+          "lsp",
+          "developer-tools"
+        ],
+        "verifyNotes": "Changed 'most code actions' to the source's 'almost every code transformation'. Clarified that servers guessed or skipped a transformation only when context was not enough.",
+        "kind": "quick",
+        "title": "Interactive refactoring in gopls",
+        "source": "Go Blog",
+        "url": "https://go.dev/blog/interactive-refactoring",
+        "track": "backend",
+        "publishedAt": "2026-10-16T00:00:00.000Z",
+        "minutes": 17,
+        "whySelected": "Shows how the LSP is gaining multi-step interactive refactorings, with gopls as the reference implementation."
+      },
+      {
+        "id": "5aad679eab",
+        "tldr": "Rust's Poll enum has only Ready(T) and Pending, so a future that has already returned Ready has no correct way to say 'done' if polled again, and all async blocks and functions panic instead. The author argues Poll should have had a third Done variant, which cannot be added now because Poll is not #[non_exhaustive], but the still-unstable CoroutineState can be fixed without breakage.",
+        "keyIdea": "A completion protocol needs a distinct 'done, nothing more to yield' state. Without it, implementations either panic (async blocks and functions) or misuse Pending (the futures crate's Fuse adapter, which hangs forever if you forget to call is_terminated first). MaybeDone, which holds either a future or its output, has the side effect of letting callers detect that a future is done.",
+        "whyItMatters": "When you design any state-machine or polling API, decide upfront how it reports terminal state, because a missing variant in a public enum that is not #[non_exhaustive] cannot be added later. A Done variant would also let async functions and blocks drop the unwinding support they inject on every path, which would shrink codegen and especially benefit embedded targets.",
+        "tags": [
+          "rust",
+          "async",
+          "api-design"
+        ],
+        "verifyNotes": "Merged tldr from 3 sentences to 2. Changed 'panic' to 'all async blocks and functions panic' to match the source. Replaced the overstated claim that MaybeDone exists 'mainly to track' the done state; the source describes its done-state signal as a side effect. Clarified that Fuse is from the futures crate and that the hang happens when is_terminated is not called first.",
+        "kind": "quick",
+        "title": "The Future Trait Has A Missing State",
+        "source": "Lobsters",
+        "url": "https://blog.yoshuawuyts.com/the-future-trait-has-a-missing-state",
+        "track": "general",
+        "publishedAt": "2026-10-29T04:24:28.000Z",
+        "minutes": 9,
+        "whySelected": "A precise look at a gap in Rust's Future state model, which sharpens understanding of async internals."
+      },
+      {
+        "id": "918fa36874",
+        "tldr": "This is a primer on link-layer and addressing basics: Ethernet framing and FCS error detection, 48-bit MAC addresses learned via ARP, how switches learn ports and flood unknown destinations within a VLAN, Wi-Fi bands and CSMA/CA, static IPs, and DHCP's DORA lease flow. Switches forward frames inside a network by MAC address, and routers forward packets between networks by IP address.",
+        "keyIdea": "IP addresses move packets between networks, while MAC addresses move frames within one network. Switches learn MAC-to-port mappings from incoming frames' source addresses and flood frames when they don't know the destination.",
+        "whyItMatters": "Diagnosing slow connections, packet loss, or a device losing its address requires knowing which layer is involved. Examples include ARP caching, switch flooding, Wi-Fi airtime consumed by clients with poor signal, and DHCP leases that expire without renewal.",
+        "tags": [
+          "networking",
+          "fundamentals",
+          "infrastructure"
+        ],
+        "verifyNotes": "Changed 'MAC addresses resolved via ARP' to 'learned via ARP', since devices broadcast an ARP query to learn a neighbor's MAC address. Changed 'FCS error checks' to 'FCS error detection'. Specified that leases expire 'without renewal'.",
+        "kind": "quick",
+        "title": "11 Networking Concepts Explained in 11 Minutes",
+        "source": "Neo Kim System Design",
+        "url": "https://newsletter.systemdesign.one/p/computer-networking-fundamentals-for-software-engineers",
+        "track": "systems",
+        "publishedAt": "2026-10-23T16:06:14.000Z",
+        "minutes": 16,
+        "whySelected": "A fast refresher on core networking concepts, filling a common gap for full-stack engineers."
+      },
+      {
+        "id": "7028f0740b",
+        "tldr": "Netflix automated the conversion of 16:9 footage into 9:16, 4:5, and 1:1 crops in a single pass, using three stages: neural shot detection with sub-shot splitting by active speaker, a focus region built from faces plus saliency maps, and temporal reframing that chooses a static or smoothed tracking crop. The system is built into the internal Clips tool and can export crop parameters as XML for editors such as Adobe Premiere.",
+        "keyIdea": "Reframing works best as a tracking and temporal optimisation problem, not a per-frame crop. Lock a static window when the focus region moves little, and compute a smoothed panning path when it moves a lot, so the virtual camera feels intentional rather than shaky.",
+        "whyItMatters": "This is a concrete design for an ML media pipeline that keeps humans in the loop. Editors review and adjust the algorithm's crops, and exporting its decisions into existing tools lets external partners start from them. In Netflix's internal test, the algorithm outperformed Premiere's Auto Reframe on a curated evaluation set.",
+        "tags": [
+          "video-processing",
+          "computer-vision",
+          "media-pipelines"
+        ],
+        "verifyNotes": "Merged tldr from 3 sentences to 2. Changed 'subject moves' to 'focus region moves' to match the source's heuristic. Changed 'for Adobe Premiere' to 'for editors such as Adobe Premiere'.",
+        "kind": "quick",
+        "title": "Multi‑Ratio Video Resizing for Mobile Feed and Marketing",
+        "source": "Netflix Tech Blog",
+        "url": "https://netflixtechblog.com/multi-ratio-video-resizing-for-mobile-feed-and-marketing-2e6b42810f49?source=rss----2615bd06b42e---4",
+        "track": "systems",
+        "publishedAt": "2026-10-26T16:01:02.000Z",
+        "minutes": 5,
+        "whySelected": "Netflix's media pipeline for resizing video to multiple aspect ratios, a practical mobile and media systems problem."
+      },
+      {
+        "id": "3bd3315ede",
+        "tldr": "'AI SRE' tools from vendors such as Rootly, incident.io, and ResolveAI mostly speed up incident investigation inside Slack; whether they should make code changes is debated, and the fully autonomous agents shown in demos like Microsoft's Azure SRE Agent are not yet reality. Demand is rising because AI agents have doubled PR frequency at almost all tech companies, and Rootly data shows pages are up, with out-of-hours pages nearly doubling.",
+        "keyIdea": "Incident rate = change rate × probability a change fails. AI coding agents push change rate up, so teams must lower failure probability through better pre-deploy verification or by learning from incidents.",
+        "whyItMatters": "On-call is shifting toward eventually fewer but harder pages and a new class of AI-related outages, with a real risk of deskilling. The article suggests incident response simulations, such as those from Uptime Labs, as one way to keep on-call skills sharp.",
+        "tags": [
+          "sre",
+          "incident-response",
+          "ai-agents"
+        ],
+        "verifyNotes": "Merged tldr from 3 sentences to 2. Replaced the unsupported claim that the tools 'do not autonomously ship fixes'; the source says whether they should make code changes is debated. Attributed the pages data to Rootly and stated that out-of-hours pages nearly doubled. Aligned the PR-frequency claim with the source ('almost all tech companies'). Added 'eventually' to the fewer-pages claim and named Uptime Labs as the source's example.",
+        "kind": "quick",
+        "title": "AI SRE: what is it, how could it change on-call – and does it work?",
+        "source": "The Pragmatic Engineer",
+        "url": "https://newsletter.pragmaticengineer.com/p/ai-sre",
+        "track": "career",
+        "publishedAt": "2026-10-27T16:19:22.000Z",
+        "minutes": 19,
+        "whySelected": "A sceptical, detailed look at whether 'AI SRE' tools actually work on call."
+      },
+      {
+        "id": "cf35c94711",
+        "tldr": "A predicate is roughly a Boolean-returning function, but it defines what the answer is rather than how to compute it, so it can be abstract (possibly not computable) or concrete. Formalising an English requirement such as 'enough RAM and a fast CPU or a good GPU' as a predicate exposes ambiguity in operator grouping, and a truth table shows exactly which inputs give different results.",
+        "keyIdea": "Writing a requirement as a logical expression forces you to resolve ambiguities that natural language hides. For example, a && b || c can be read as (a && b) || c or a && (b || c), and these differ for two input combinations.",
+        "whyItMatters": "Ambiguous natural-language requirements lead to misunderstandings, as in the author's example of misreading a vendor's system requirements. Formalising them with predicates and truth tables makes the ambiguity visible.",
+        "tags": [
+          "logic",
+          "formal-methods",
+          "requirements"
+        ],
+        "verifyNotes": "Changed '(not computable)' to '(possibly not computable)', since the source says abstract predicates may express things we can't compute or don't yet know how to. Specified that the two readings differ for exactly two input combinations. Replaced the unsupported 'real bugs and disputes' and 'cheap way to catch before code' claims with the author's vendor-requirements example.",
+        "kind": "quick",
+        "title": "A Crash Course in Predicate Logic",
+        "source": "Hillel Wayne",
+        "url": "https://www.hillelwayne.com/post/predicate-logic/",
+        "track": "design",
+        "publishedAt": "2026-09-01T00:00:00.000Z",
+        "minutes": 29,
+        "whySelected": "A compact introduction to predicate logic aimed at programmers, useful for specs and reasoning about code."
+      }
+    ],
+    "aiNews": [
+      {
+        "id": "b44fa46ddb",
+        "tldr": "A harness is the system around a base model that orchestrates execution and decides how it thinks and plans, calls tools and acts, perceives and manages context, stores artifacts and evaluates results. Lilian Weng argues that this deployment layer seems to be as important as the model's raw intelligence, and the post covers recurring harness design patterns (workflow automation, file system as persistent memory, sub-agents and backend jobs) and how harness engineering contributes to recursive self-improvement (RSI), in which an AI uses its current intelligence to improve the machinery that produces its intelligence.",
+        "keyIdea": "Keep durable state in files rather than in the context window, and make parallel work explicit and inspectable (files, logs, status records), so the agent can recover after interruptions and reason over its own execution history.",
+        "whyItMatters": "Coding agents such as Claude Code and Codex show that harnesses are important parts of AI deployment. Compared with early agent frameworks, harness engineering adds workflow design, evaluation, permission controls and persistent state management, which makes it closer to runtime and software-system design than to prompt templating.",
+        "tags": [
+          "ai-agents",
+          "harness-engineering",
+          "llm"
+        ],
+        "verifyNotes": "Hedged the harness-vs-raw-intelligence claim to match the source's 'seems to be as important'. Renamed 'workflow loops' to the source's 'workflow automation'. Credited the argument to Lilian Weng. Separated whyItMatters claims the draft had wrongly merged: Claude Code/Codex show that harnesses matter, while the 'closer to runtime design' point comes from the comparison with early agent frameworks. Removed the unsupported claim that harnesses are 'where much practical agent capability comes from'.",
+        "kind": "ai",
+        "title": "Harness Engineering for Self-Improvement",
+        "source": "Lilian Weng",
+        "url": "https://lilianweng.github.io/posts/2026-07-04-harness/",
+        "track": "ai",
+        "publishedAt": "2026-07-04T00:00:00.000Z",
+        "minutes": 38,
+        "whySelected": "Lilian Weng's deep survey of harness engineering for self-improving AI systems."
+      },
+      {
+        "id": "a67468a060",
+        "tldr": "A NeurIPS'26 workshop paper translates TLA+ specs from GitHub into Verus and uses an LLM prover-reviewer loop to prove their safety and liveness properties, reusing Anvil's temporal-logic library almost directly. Murat Demirbas argues that the paper understates TLAPS's temporal proof capability, does not compare against TLAPS proofs, and has no refinement proof that the translated Verus spec means what the original TLA+ spec meant.",
+        "keyIdea": "The proofs are only as useful as their link to the artifacts you care about. With no refinement proof from TLA+ to Verus and no exec code (every task is spec and proof only), nothing ties these proofs to the original spec or to an implementation.",
+        "whyItMatters": "LLM-driven formal verification is attractive, but counting (spec, property) pairs inflates the corpus: the 16,459 pairs come from only 2,734 TLA+ modules in 838 GitHub repositories, a median of 5 properties per module.",
+        "tags": [
+          "formal-verification",
+          "tla-plus",
+          "llm"
+        ],
+        "verifyNotes": "Replaced the vague 'the reviewer' with the author, Murat Demirbas. Changed 'building on' to the source's 'reusing ... almost directly'. Changed 'never compares' to 'does not compare'. Added that every task is spec and proof only. Added the 838-repository and median-of-5 figures. Removed the unsupported 'hide gaps' claim from whyItMatters.",
+        "kind": "ai",
+        "title": "TLA-Verus: LLM agents prove temporal properties of TLA+ specs",
+        "source": "Murat Demirbas",
+        "url": "https://muratbuffalo.blogspot.com/2026/10/tla-verus-llm-agents-prove-temporal.html",
+        "track": "systems",
+        "publishedAt": "2026-10-27T19:13:12.678Z",
+        "minutes": 11,
+        "whySelected": "LLM agents proving safety and liveness properties of real TLA+ specs, where formal methods meet AI."
+      },
+      {
+        "id": "2862aed6ff",
+        "tldr": "Apple runs a 3-billion-parameter LLM on the iPhone, where the challenges are memory capacity, memory bandwidth, battery consumption, overheating and other apps competing for the same resources (at 16-bit precision the parameters alone take almost 6GB). Apple compresses weights with palettization and, in its later model, quantization-aware training, and it shrinks the KV cache (stored intermediate results from earlier tokens) with cross-layer KV sharing.",
+        "keyIdea": "On-device inference has two memory targets: the weights and the KV cache. The earlier model mixed 2-bit and 4-bit representations at an average of 3.7 bits per weight, storing the weights in about 1.39GB. Cross-layer KV sharing, which splits the model into two blocks at a 5:3 depth ratio, cut KV-cache memory use by 37.5%.",
+        "whyItMatters": "On a phone, memory capacity and bandwidth constrain LLM inference alongside battery and heat: even a powerful processor can spend a lot of time waiting for data from memory, so compression is central to running the model without making the rest of the device unresponsive.",
+        "tags": [
+          "llm-inference",
+          "quantization",
+          "mobile"
+        ],
+        "verifyNotes": "Noted that quantization-aware training applies to the later model and that the 3.7-bit, 1.39GB figures apply to the earlier model. Added the 5:3 block split for cross-layer KV sharing. Removed the unsupported claims that memory, 'not raw compute', is the binding constraint and that compression decides 'whether a model fits at all'. Reworded whyItMatters to match the source.",
+        "kind": "ai",
+        "title": "How Apple Fits an LLM on Your iPhone",
+        "source": "ByteByteGo",
+        "url": "https://blog.bytebytego.com/p/how-apple-fits-an-llm-on-your-iphone",
+        "track": "systems",
+        "publishedAt": "2026-10-27T15:31:04.000Z",
+        "minutes": 9,
+        "whySelected": "Explains the quantisation and memory techniques Apple uses to run an LLM on a phone."
+      },
+      {
+        "id": "feb4caa835",
+        "tldr": "Google Research proposes a sleep framework for continual learning in which an LLM alternates between an active (wake) phase and an offline sleep phase. During sleep, the model consolidates short-term context into long-term parameters and self-improves by training on its own generated examples. The authors report that this lets the model keep acquiring new facts, retain long-context knowledge up to 10M tokens and improve complex reasoning while mitigating catastrophic forgetting.",
+        "keyIdea": "To avoid catastrophic forgetting (new training degrading previously learned tasks), the model distills short-term memories into newly unlocked low-rank Mixture-of-Experts (MoE) experts in lower-frequency memory blocks instead of disrupting older parameters, then resets the high-frequency temporary parameters.",
+        "whyItMatters": "Once deployed, LLMs remain largely static with a fixed knowledge cutoff, and in-context learning loses the information it acquired once the context session ends.",
+        "tags": [
+          "continual-learning",
+          "llm",
+          "machine-learning"
+        ],
+        "verifyNotes": "Softened 'stuck with a fixed knowledge cutoff' to the source's 'remain largely static' and 'forgets everything' to 'loses the information it acquired'. Clarified in keyIdea that the experts sit in lower-frequency memory blocks and that the reset applies to high-frequency temporary parameters.",
+        "kind": "ai",
+        "title": "The sleep framework: A new way for LLMs to retain knowledge in continual learning",
+        "source": "Google Research",
+        "url": "https://research.google/blog/the-sleep-framework-a-new-way-for-llms-to-retain-knowledge-in-continual-learning/",
+        "track": "ai",
+        "publishedAt": "2026-10-27T17:35:00.000Z",
+        "minutes": 9,
+        "whySelected": "Google Research's 'sleep' framework for retaining knowledge in continual learning, a concrete research advance."
+      },
+      {
+        "id": "65e0512678",
+        "tldr": "Nathan Lambert uses Artificial Analysis's Intelligence Index v5, which weights knowledge work, coding, science and general tasks at 25% each, to examine how hard it is to reduce frontier model ability to a single number. He says v5 aims to measure where frontier models are moving, which widens the gap with open models (8 closed models beat the best open-weight model, Kimi K3.1 Pro), and that the previous index flattered open-weight models too strongly, though he calls open models' demise greatly exaggerated.",
+        "keyIdea": "Hill-climbing a benchmark is easy compared with knowing what to hill-climb, and every method of aggregating scores into one number comes with meaningful trade-offs.",
+        "whyItMatters": "Independent evaluators dictate the winners and losers of a trillion-dollar market and even steer the shape of model progress, so their aggregation choices carry a lot of weight.",
+        "tags": [
+          "llm",
+          "benchmarks",
+          "evaluation"
+        ],
+        "verifyNotes": "Added 'too strongly', the Kimi K3.1 Pro / 8-closed-models detail and the author's 'demise greatly exaggerated' caveat. Removed the unsupported framing that aggregation choices 'shape which models look like winners' from keyIdea. Replaced the unsupported advice in whyItMatters with the source's 'trillion-dollar market' and 'steering the shape of progress' points.",
+        "kind": "ai",
+        "title": "Artificial Analysis v5 and the benchmarker's dilemma",
+        "source": "Interconnects",
+        "url": "https://www.interconnects.ai/p/artificial-analysis-v5-and-the-benchmarkers",
+        "track": "ai",
+        "publishedAt": "2026-10-28T12:58:39.000Z",
+        "minutes": 9,
+        "whySelected": "A critical review of how LLM benchmarking is done and what it misses."
+      }
+    ],
+    "concept": {
+      "track": "System Design",
+      "title": "Caching in Depth: Where to Cache, Eviction, Invalidation, and Stampedes",
+      "minutes": 13,
+      "intro": "Caching is usually the cheapest large performance gain you can make, and also a common cause of hard production incidents: users see stale data, the database melts when Redis restarts, or a single expired key triggers an outage. Senior engineers do not ask whether to cache. They ask which layer to cache in, how stale the data is allowed to be, what happens on a miss under load, and what happens when the cache is gone. This lesson covers those decisions with concrete numbers and the failure modes you will meet in real systems.",
+      "sections": [
+        {
+          "heading": "Why caching works: latency numbers and hit-ratio math",
+          "body": "A cache trades memory and staleness for latency and backend load. Rough orders of magnitude:\n\n- An in-process hash map lookup takes about 100 ns.\n- A Redis or Memcached GET in the same availability zone takes about 0.2 to 1 ms, mostly network round trip.\n- An indexed Postgres query takes about 1 to 10 ms.\n- A cross-region call takes 50 to 150 ms.\n\nThe cache is worth having only if the data is read much more often than it changes, and if a slightly stale answer is acceptable.\n\nThe number that matters most is the miss rate, not the hit rate. Backend load equals request rate multiplied by miss rate. At 10,000 requests per second:\n\n- A 99% hit ratio sends 100 rps to the database.\n- A 95% hit ratio sends 500 rps.\n\nA drop that looks small on a dashboard (99 to 95) is a 5x increase in database load. This is why a cache that was quietly absorbing most of your traffic becomes a hidden critical dependency. Once the database is sized for the cached load, losing the cache is an outage, not a slowdown.\n\nHit ratio depends on the working set (the keys actively requested in a time window) compared with cache size, and on how skewed access is. Most real traffic is heavily skewed: a small fraction of keys gets most of the reads. That skew is why a cache holding a small slice of the data can still serve the large majority of reads."
+        },
+        {
+          "heading": "Where to cache: the layers and their trade-offs",
+          "body": "1. Client and browser: HTTP Cache-Control and ETag headers. The fastest request is one never sent. However, you cannot purge a browser cache, so content-hashed filenames (app.3f9a.js) with long max-age are the standard approach for static assets.\n\n2. CDN or edge: Cloudflare, Fastly, CloudFront. Useful for static assets and cacheable API responses. Key headers:\n- s-maxage sets the shared-cache lifetime.\n- stale-while-revalidate and stale-if-error let the CDN serve old content while it refreshes or while your origin is down.\n- Surrogate keys (tags) allow targeted purges, such as purging everything tagged product:42.\nThe main risk is cache-key mistakes. If a response varies by cookie or Authorization header and the CDN does not know that, one user's private page can be served to another user. Never cache authenticated responses at a shared layer unless the cache key explicitly includes the identity.\n\n3. In-process (L1): Caffeine (Java), lru-cache (Node), or a plain dict. Nanosecond reads and no network. The downsides:\n- Each of N instances holds its own copy, so memory is multiplied by N.\n- Invalidation must be broadcast, for example over Redis pub/sub.\n- Instances disagree with each other briefly.\nL1 works well for small, hot, rarely changing data such as config, feature flags, and permission maps, with short TTLs of seconds.\n\n4. Distributed (L2): Redis or Memcached shared by all instances. One copy, consistent across app servers, survives deploys. You pay a network hop and take on a dependency that needs capacity planning, replication, and failure handling.\n\n5. Inside the database: Postgres shared_buffers, the MySQL buffer pool, and materialized views. This is often enough. Before adding Redis, check whether the slow query just needs an index or a read replica.\n\nA common mature setup is CDN, then a small L1 with a 1 to 5 second TTL, then Redis, then the database. Every layer you add is another place where data can be stale, so add layers only to solve a measured problem."
+        },
+        {
+          "heading": "Read and write patterns",
+          "body": "Cache-aside (lazy loading) is the default. The application:\n1. Reads the cache.\n2. On a miss, reads the database.\n3. Writes the result to the cache with a TTL.\n4. On writes, updates the database and then deletes the cache key.\nAdvantages: only requested data is cached, and a cache outage degrades to direct database reads. Disadvantages: the first request after expiry is slow, and there are race conditions (covered in the invalidation section).\n\nRead-through: the cache library or service loads from the database on a miss. Caffeine LoadingCache and DAX for DynamoDB work this way. The logic is the same as cache-aside but centralized, which makes it easier to add request coalescing.\n\nWrite-through: every write goes to the cache and the database synchronously. Reads stay fresh, but write latency increases and you cache data that may never be read.\n\nWrite-behind (write-back): writes go to the cache and are flushed to the database asynchronously in batches. Write throughput is very high, but a cache crash loses acknowledged writes. Use this only where losing data is acceptable, such as view counters or metrics aggregation. It is rarely acceptable for orders or payments.\n\nWhy delete on write instead of setting the new value? Two concurrent writers A and B can commit to the database in the order A then B but update the cache in the order B then A. The cache then holds A's older value indefinitely. Deleting the key is idempotent, so the next reader loads whatever the database currently holds. Prefer invalidation over update unless the new value is cheap and the writes are serialized."
+        },
+        {
+          "heading": "Eviction: what gets thrown out when memory is full",
+          "body": "Common policies:\n- LRU (least recently used) evicts the item untouched for the longest time. It is simple and good for recency-heavy traffic, but a single large scan (a batch job or a crawler) can flush the whole hot set.\n- LFU (least frequently used) resists scans but adapts slowly when popularity shifts, unless the counts decay over time.\n- W-TinyLFU, used in Caffeine, keeps a small LRU admission window and admits a new item to the main cache only if its estimated frequency (from a count-min sketch) beats the eviction victim. It is close to optimal across many workloads. This is why Caffeine usually outperforms hand-rolled LRU.\n\nRedis behaviour to know:\n- maxmemory-policy defaults to noeviction. When memory is full, writes fail with OOM errors. For a pure cache, set allkeys-lru or allkeys-lfu.\n- volatile-* policies evict only keys that have a TTL. If most keys lack one, Redis can still reject writes.\n- Redis LRU and LFU are approximate. Redis samples maxmemory-samples keys (default 5) and evicts the best candidate among them.\n- Do not mix durable data such as queues or sessions with evictable cache data in the same instance. Eviction will eventually delete something you needed.\n\nTTL is not eviction, but it works alongside it. TTL bounds staleness, and eviction bounds memory. Choose the TTL from the business tolerance for stale data (for example, prices for 30 seconds, product descriptions for 1 hour), not from a default. Add jitter, such as TTL multiplied by a random factor between 0.9 and 1.1, so keys written together do not all expire together."
+        },
+        {
+          "heading": "Invalidation: the actual hard problem",
+          "body": "The classic cache-aside race:\n1. Reader R misses and reads value v1 from the database.\n2. Writer W updates the database to v2 and deletes the cache key.\n3. R, which was delayed (for example by a GC pause), writes v1 into the cache.\nThe cache now serves stale v1 until the TTL expires. Without a TTL, it is stale forever. This is the main reason every cache entry should have a TTL. The TTL is your upper bound on how long a stale value can survive.\n\nMitigations, roughly from weakest to strongest:\n- Short TTLs.\n- Delete after the transaction commits, not before or inside it. Deleting before commit lets a reader re-cache the old value.\n- Delayed double delete: delete now, then delete again after a few hundred milliseconds.\n- Versioned keys: include a version or updated_at value in the key, so stale entries are never read.\n- Leases: the cache gives the missing reader a token, a delete invalidates that token, and the set is rejected if the token is no longer valid. Facebook described this in Scaling Memcache at Facebook (2013).\n- Change data capture (CDC): a process tails the database's replication log (Postgres WAL or the MySQL binlog, for example with Debezium) and issues the deletes. Invalidation then happens even when a write path forgets to do it, and writes are processed in commit order.\n\nFor derived data such as a cached user feed or an aggregated count, the hard part is knowing which keys a write affects. Options:\n- Tag-based invalidation: track which keys depend on product 42.\n- Coarser keys.\n- Accept TTL-only staleness.\nSay the staleness budget out loud in design reviews. For example: profile pages can be up to 60 seconds stale, account balances are never cached. Correctness-critical reads should go to the source of truth."
+        },
+        {
+          "heading": "Stampedes, penetration, and hot keys",
+          "body": "Stampede (thundering herd, dog-piling): a hot key that takes 200 ms to compute expires while 5,000 rps are hitting it. Every request misses during that window, so roughly 1,000 identical queries hit the database at once. The database slows down, the recompute takes longer, and the situation gets worse. Defences:\n- Request coalescing (single-flight): within a process, only one caller computes a given key while the others wait for its result. Go has singleflight, and Caffeine coalesces loads by default.\n- Distributed lock: SET key:lock NX PX 5000 lets one instance recompute while the others serve the stale value or briefly wait and retry.\n- Stale-while-revalidate: store a soft expiry inside the value and a longer hard TTL. After the soft expiry, one caller refreshes in the background while everyone else gets the stale value.\n- Probabilistic early expiration (XFetch): each reader recomputes early if now - delta * beta * ln(random()) >= expiry. Here delta is the recompute time and beta is about 1. Because ln(random()) is negative, the term pushes the check forward in time. The closer the key is to expiry, the more likely one request refreshes it, with no lock needed.\n- Background refresh for a small known set of very hot keys.\n\nCold start is a stampede across every key at once, caused by a Redis failover without replicas, a flushed cache, or a new region. Mitigations:\n- Warm the cache from logs of hot keys.\n- Ramp traffic gradually.\n- Have database-side load shedding: connection pool limits and circuit breakers. Without these, the database falls over instead of rejecting excess requests.\n\nCache penetration is repeated lookups for keys that do not exist, such as random IDs from a scraper. These always miss and always hit the database. Fixes:\n- Cache negative results (not found) with a short TTL, such as 30 to 60 seconds.\n- Put a Bloom filter of valid IDs in front of the lookup.\n\nHot key: a single key such as a celebrity profile can exceed one Redis shard's capacity. One Redis node handles very roughly 100k or more simple operations per second, and network bandwidth often saturates first for large values. Fixes:\n- Add an L1 in-process cache for that key.\n- Replicate it under N suffixed keys (key#0 to key#7) and read a random one.\n- Shrink the value.\nKeep values small in general. Multi-megabyte values block Redis's single-threaded command execution and consume a lot of bandwidth."
+        },
+        {
+          "heading": "What a senior engineer does differently",
+          "body": "Measure before caching. Many slow endpoints are fixed by an index, by removing an N+1 query, or by adding a read replica, and none of those introduce a staleness bug. If you do add a cache, instrument the following from day one, since without them you cannot see the problem before it becomes an outage:\n- Hit ratio per key prefix.\n- Miss latency.\n- Evictions per second.\n- Memory use.\n- Database QPS.\n\nDesign for the cache being gone:\n- Set timeouts on cache calls, around 10 to 50 ms, so a slow Redis does not stall every request.\n- Treat cache errors as misses, possibly with a circuit breaker.\n- Run load tests with the cache disabled or cold.\nIf the system cannot survive at a 0% hit ratio, document that and plan capacity for Redis accordingly: replicas, cluster mode, and multi-AZ.\n\nKeep invalidation simple:\n- Every key gets a TTL.\n- Delete on write, after commit.\n- Use namespaced, versioned key formats such as user:v3:123, so a schema change is a version bump rather than a flush.\n- Coalesce misses on anything hot.\nMost caching incidents come from skipping one of these basics, not from choosing the wrong eviction algorithm."
+        }
+      ],
+      "diagram": "Request path (each layer: latency | main risk)\n\n Client/Browser   ~0 ms        | cannot purge, use hashed filenames\n      |\n     CDN          5-30 ms      | wrong cache key leaks private data\n      |\n  App server\n   [L1 in-proc]   ~100 ns      | N copies, cross-instance staleness\n      |\n   [L2 Redis]     0.2-1 ms     | hidden dependency, stampede on expiry\n      | miss\n   Database       1-10+ ms     | sized for miss rate only\n\nCache-aside write path:\n  1. UPDATE db  ->  2. COMMIT  ->  3. DEL cache key  (TTL bounds any race)",
+      "commonMistakes": [
+        "Caching without a TTL, or deleting the key before the transaction commits. Either way, a concurrent reader can re-cache the old value and it stays stale until a restart or manual flush.",
+        "Running Redis as a cache with the default noeviction policy, or mixing durable data such as sessions and queues with cache data. The result is OOM write errors, or eviction silently deleting data you needed.",
+        "Ignoring stampedes and cold starts. The database is sized for a 99% hit ratio, then a hot key expires or Redis fails over, and the database receives 10 to 100 times its normal load with no coalescing or load shedding.",
+        "Caching responses at the CDN or in a shared cache without the user identity in the key, which serves one user's private data to another user."
+      ],
+      "interviewQuestions": [
+        "Design caching for a product page that receives 50k rps, where prices change several times a day and descriptions rarely change. Hint: split by data volatility, use the CDN for descriptions with surrogate-key purges, give prices a short TTL or a separate uncached call, and add stale-while-revalidate and coalescing on hot items.",
+        "Your Redis cluster restarted and the database CPU went to 100%. What happened, and how do you prevent it next time? Hint: a cold-cache stampede at 0% hit ratio, fixed with replicas and failover, cache warming, request coalescing, gradual traffic ramp, and database connection limits or load shedding.",
+        "With cache-aside, how can the cache end up holding a stale value even though every write deletes the key? Hint: a slow reader reads the old row before the write and sets it after the delete; mitigate with TTLs, delete after commit, delayed double delete, leases, or CDC-driven invalidation."
+      ],
+      "questions": [
+        "Why is deleting a cache key on write generally safer than updating it with the new value?",
+        "At 20,000 rps, how many requests per second reach the database at a 98% hit ratio compared with a 99.5% hit ratio, and what does that imply for capacity planning?",
+        "Name three techniques that prevent a cache stampede on a single hot key, and give one trade-off of each."
+      ]
+    }
+  },
+  "english": {
+    "words": [
+      {
+        "word": "heads-up",
+        "level": "basic",
+        "pos": "noun",
+        "ipa": "/ˈhɛdz ʌp/",
+        "syllables": "heads-up",
+        "meaning": "an early warning or piece of advance information so someone can prepare",
+        "examples": [
+          "Just a heads-up: the staging server will be down for maintenance tonight.",
+          "Thanks for the heads-up about the traffic, I left early."
+        ],
+        "synonyms": [
+          "warning",
+          "advance notice",
+          "tip-off"
+        ],
+        "commonMistake": "Saying \"give a head up\" or \"give a heads up to you\"; say \"give someone a heads-up\" or \"a heads-up about something\".",
+        "etymology": "From the shouted warning \"Heads up!\", meaning look up and pay attention.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "workaround",
+        "level": "basic",
+        "pos": "noun",
+        "ipa": "/ˈwɜːrk.ə.raʊnd/",
+        "syllables": "work-a-round",
+        "meaning": "a temporary way to avoid a problem without actually fixing its cause",
+        "examples": [
+          "We shipped a workaround for the login bug while we investigate the root cause.",
+          "The printer jams a lot, so my workaround is to feed one sheet at a time."
+        ],
+        "synonyms": [
+          "stopgap",
+          "temporary fix",
+          "band-aid"
+        ],
+        "commonMistake": "The noun is one word (\"a workaround\"), and the verb is two words (\"we can work around it\").",
+        "etymology": "From \"work around\"; used in computing since the 1960s.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "on track",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ɑːn ˈtræk/",
+        "syllables": "on track",
+        "meaning": "progressing as planned and likely to meet the goal or deadline",
+        "examples": [
+          "Are we still on track for the Friday release?",
+          "I'm on track to finish the course by December."
+        ],
+        "synonyms": [
+          "on schedule",
+          "on course",
+          "going to plan"
+        ],
+        "commonMistake": "Saying \"in track\"; the correct phrases are \"on track\" and \"off track\".",
+        "etymology": "From railways: a train on its track is moving where it should.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "sign off",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/saɪn ˈɔːf/",
+        "syllables": "sign off",
+        "meaning": "to give official approval for something, or to end a message or work session",
+        "examples": [
+          "We need the product manager to sign off on the design before we start building.",
+          "I'm going to sign off for the day, see you tomorrow."
+        ],
+        "synonyms": [
+          "approve",
+          "give the go-ahead",
+          "okay"
+        ],
+        "commonMistake": "The verb is two words (\"sign off on the plan\"), and the noun is hyphenated (\"we got sign-off\"). Don't say \"sign off the plan\" when you mean approve it.",
+        "etymology": "From signing your name on a document to show approval.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "loop in",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/luːp ˈɪn/",
+        "syllables": "loop in",
+        "meaning": "to include someone in a conversation, email thread or decision so they stay informed",
+        "examples": [
+          "Let me loop in Priya, since she owns the payments service.",
+          "Can you loop me in when you hear back from the landlord?"
+        ],
+        "synonyms": [
+          "include",
+          "copy in",
+          "keep in the loop"
+        ],
+        "commonMistake": "Dropping \"in\": say \"loop me in\", not \"loop me\".",
+        "etymology": "From \"in the loop\", meaning inside a circle of communication.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "upfront",
+        "level": "basic",
+        "pos": "adj",
+        "ipa": "/ʌpˈfrʌnt/",
+        "syllables": "up-front",
+        "meaning": "1) honest and direct from the start; 2) done or paid at the beginning",
+        "examples": [
+          "I want to be upfront: this migration will take at least two sprints.",
+          "The hotel asked us to pay half upfront."
+        ],
+        "synonyms": [
+          "candid",
+          "direct",
+          "in advance"
+        ],
+        "commonMistake": "Confusing it with \"in front\" (a physical position). It is usually \"upfront about something\", for example \"upfront about the risks\".",
+        "etymology": "From \"up front\", meaning at the front; the money sense dates from the 1970s.",
+        "tier": "everyday words learners often miss"
+      },
+      {
+        "word": "ballpark",
+        "level": "basic",
+        "pos": "adj",
+        "ipa": "/ˈbɔːl.pɑːrk/",
+        "syllables": "ball-park",
+        "meaning": "rough or approximate, especially for numbers and estimates",
+        "examples": [
+          "Can you give me a ballpark estimate for how long the refactor will take?",
+          "I don't need an exact price, just a ballpark figure."
+        ],
+        "synonyms": [
+          "rough",
+          "approximate",
+          "back-of-the-envelope"
+        ],
+        "commonMistake": "It is used mostly in fixed phrases: \"ballpark figure/estimate\" or \"in the ballpark\". Don't use it for precise numbers.",
+        "etymology": "American baseball: being \"in the ballpark\" means being within the right general area.",
+        "tier": "everyday words learners often miss"
+      },
+      {
+        "word": "hands-on",
+        "level": "basic",
+        "pos": "adj",
+        "ipa": "/ˌhændz ˈɑːn/",
+        "syllables": "hands-on",
+        "meaning": "directly involved in doing the work yourself, not just supervising or reading about it",
+        "examples": [
+          "In my last role I was hands-on with the Kubernetes setup, not just reviewing it.",
+          "She learns best through hands-on practice."
+        ],
+        "synonyms": [
+          "practical",
+          "direct",
+          "involved"
+        ],
+        "commonMistake": "Hyphenate it before a noun (\"hands-on experience\"), and don't confuse it with \"hands-off\", which means the opposite.",
+        "etymology": "From 1960s computing and training, meaning physically operating the machine.",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "fallback",
+        "level": "basic",
+        "pos": "noun",
+        "ipa": "/ˈfɔːl.bæk/",
+        "syllables": "fall-back",
+        "meaning": "a backup option or behavior used when the main one fails",
+        "examples": [
+          "If the cache is unavailable, the service uses the database as a fallback.",
+          "My fallback plan is to take the train if the flight is cancelled."
+        ],
+        "synonyms": [
+          "backup",
+          "plan B",
+          "contingency"
+        ],
+        "commonMistake": "The noun or adjective is one word (\"a fallback option\"), and the verb is two words with \"on\" (\"we can fall back on the old API\").",
+        "etymology": "From military use: falling back to a prepared position.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "tricky",
+        "level": "basic",
+        "pos": "adj",
+        "ipa": "/ˈtrɪk.i/",
+        "syllables": "trick-y",
+        "meaning": "difficult because it needs care, skill or tact",
+        "examples": [
+          "Time zones make this scheduling logic a bit tricky.",
+          "Telling a friend no is always tricky."
+        ],
+        "synonyms": [
+          "delicate",
+          "awkward",
+          "challenging"
+        ],
+        "commonMistake": "A \"tricky problem\" means a difficult one, but a \"tricky person\" usually means a deceptive one. Use it for situations, not to praise people.",
+        "etymology": "From \"trick\", from Old North French \"trique\", meaning deceit.",
+        "tier": "everyday words learners often miss"
+      },
+      {
+        "word": "narrow down",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ˌnær.oʊ ˈdaʊn/",
+        "syllables": "nar-row down",
+        "meaning": "to reduce a set of options or possibilities to a smaller number",
+        "examples": [
+          "We narrowed the bug down to a race condition in the queue consumer.",
+          "I've narrowed it down to two apartments."
+        ],
+        "synonyms": [
+          "shortlist",
+          "filter",
+          "isolate"
+        ],
+        "commonMistake": "Saying \"narrow up\" or leaving out the target; the usual pattern is \"narrow something down to X\".",
+        "etymology": "From Old English \"nearu\", meaning tight or confined.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "slip",
+        "level": "basic",
+        "pos": "verb",
+        "ipa": "/slɪp/",
+        "syllables": "slip",
+        "meaning": "(of a deadline or schedule) to be delayed, usually gradually",
+        "examples": [
+          "The launch slipped by two weeks because of the security review.",
+          "Don't let your sleep schedule slip during the holidays."
+        ],
+        "synonyms": [
+          "be delayed",
+          "slide",
+          "fall behind"
+        ],
+        "commonMistake": "Confusing it with \"skip\". A slipped deadline is late, not missed entirely or cancelled.",
+        "etymology": "From Middle Low German \"slippen\", meaning to slide.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "outcome",
+        "level": "basic",
+        "pos": "noun",
+        "ipa": "/ˈaʊt.kʌm/",
+        "syllables": "out-come",
+        "meaning": "the final result or effect of an action, especially the real impact",
+        "examples": [
+          "The outcome was a 40% drop in page load time, which lifted sign-ups.",
+          "Whatever the outcome of the match, we'll go for dinner."
+        ],
+        "synonyms": [
+          "result",
+          "impact",
+          "consequence"
+        ],
+        "commonMistake": "Mixing it up with \"output\". Output is what you produce, such as features or code. Outcome is the effect it had. Interviewers usually want outcomes.",
+        "etymology": "18th-century Scots English: \"what comes out\" of something.",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "deprioritize",
+        "level": "intermediate",
+        "pos": "verb",
+        "ipa": "/ˌdiː.praɪˈɔːr.ə.taɪz/",
+        "syllables": "de-pri-or-i-tize",
+        "meaning": "to deliberately make something less important so attention goes to other work",
+        "examples": [
+          "We deprioritized the dark-mode feature to focus on the outage fixes.",
+          "I had to deprioritize the gym during exam season."
+        ],
+        "synonyms": [
+          "push down the list",
+          "put on the back burner",
+          "defer"
+        ],
+        "commonMistake": "It does not mean cancel. A deprioritized task still exists; it is just lower on the list.",
+        "etymology": "From \"de-\" (reverse) plus \"prioritize\"; common in business since the 1970s.",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "drill down",
+        "level": "intermediate",
+        "pos": "phrase",
+        "ipa": "/ˌdrɪl ˈdaʊn/",
+        "syllables": "drill down",
+        "meaning": "to examine something in more and more detail",
+        "examples": [
+          "Let's drill down into the error logs for the EU region.",
+          "When we drilled down, most of the cost came from one subscription."
+        ],
+        "synonyms": [
+          "dig into",
+          "zoom in on",
+          "examine closely"
+        ],
+        "commonMistake": "Use \"into\" before the topic (\"drill down into the data\"), not \"drill down the data\".",
+        "etymology": "From drilling deeper into material; later used in software for moving from summary to detail.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "iterate",
+        "level": "intermediate",
+        "pos": "verb",
+        "ipa": "/ˈɪt.ə.reɪt/",
+        "syllables": "it-er-ate",
+        "meaning": "to improve something through repeated rounds of changes and feedback",
+        "examples": [
+          "We launched a simple version first and iterated based on user feedback.",
+          "I iterated on my cover letter three times before sending it."
+        ],
+        "synonyms": [
+          "refine",
+          "revise",
+          "improve incrementally"
+        ],
+        "commonMistake": "Confusing it with \"reiterate\", which means to say something again. You usually \"iterate on\" something.",
+        "etymology": "From Latin \"iterare\", meaning to repeat.",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "scalable",
+        "level": "intermediate",
+        "pos": "adj",
+        "ipa": "/ˈskeɪ.lə.bəl/",
+        "syllables": "sca-la-ble",
+        "meaning": "able to handle growth, such as more users, data or work, without breaking or needing a full redesign",
+        "examples": [
+          "The old cron job isn't scalable, so we moved the work to a queue.",
+          "Doing every invoice by hand isn't a scalable way to run a business."
+        ],
+        "synonyms": [
+          "expandable",
+          "extensible",
+          "growth-ready"
+        ],
+        "commonMistake": "It does not mean fast. A system can be fast now and still not scale.",
+        "etymology": "From \"scale\", from Latin \"scala\", meaning ladder or steps.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "stakeholder",
+        "level": "intermediate",
+        "pos": "noun",
+        "ipa": "/ˈsteɪkˌhoʊl.dər/",
+        "syllables": "stake-hold-er",
+        "meaning": "anyone affected by or with an interest in a project or decision",
+        "examples": [
+          "Before changing the API, we checked with every stakeholder team that depends on it.",
+          "Parents are key stakeholders in school decisions."
+        ],
+        "synonyms": [
+          "interested party",
+          "partner",
+          "affected party"
+        ],
+        "commonMistake": "Confusing it with \"shareholder\", who owns company stock. A stakeholder can be a user, a teammate or another department.",
+        "etymology": "Originally the person who held the money (the \"stakes\") during a bet.",
+        "tier": "workplace and meeting language"
+      }
+    ],
+    "grammar": {
+      "topic": "Articles (a, an, the, no article): the rules that cause most mistakes",
+      "minutes": 6,
+      "explanation": "Ask two questions before every singular noun: (1) Is it countable? (2) Does the listener know exactly which one I mean? RULE 1: Singular countable nouns ALWAYS need an article (or my/this/our). You cannot say 'I fixed bug.' RULE 2: Use 'a/an' when you mention something for the first time or mean 'one of many'. Choose 'a' or 'an' by SOUND, not spelling: 'an API' (ay-pee-eye), 'an hour', 'a user' (yoo-zer), 'a URL' (yoo-ar-el). RULE 3: Use 'the' when the listener knows which one: it was mentioned before, it is unique in the context (the server, the client, the team), or it is defined by a phrase after it (the bug in the login flow). Also use 'the' with superlatives and ordinals: the best option, the first release. RULE 4: Use NO article with plural or uncountable nouns when you speak in general: 'Developers need feedback.' 'Code quality matters.' Common uncountable nouns in tech: software, code, feedback, information, advice, data (usually), research, equipment, progress, work. RULE 5: No article with most names of products, languages, companies and job meetings used as activities: 'I use Python.' 'She works at Google.' 'Let's discuss it at standup.' Examples: 'I found a bug yesterday. The bug was in the payment service.' / 'We need an hour to review the pull request.' / 'Good documentation saves time.' / 'She is the most experienced engineer on the team.' / 'Can you give me some feedback on the design?'",
+      "commonErrors": [
+        {
+          "wrong": "I am software engineer.",
+          "right": "I am a software engineer.",
+          "why": "Jobs are singular countable nouns, so they need 'a/an'."
+        },
+        {
+          "wrong": "Can you give me a feedback?",
+          "right": "Can you give me some feedback? / Can you give me a piece of feedback?",
+          "why": "'Feedback' is uncountable, so it cannot take 'a'. Use 'some' or 'a piece of'."
+        },
+        {
+          "wrong": "We deployed a new version. A new version fixed the crash.",
+          "right": "We deployed a new version. The new version fixed the crash.",
+          "why": "After the first mention, both people know which version you mean, so use 'the'."
+        },
+        {
+          "wrong": "I have a experience with a API.",
+          "right": "I have experience with an API.",
+          "why": "'Experience' (in general) is uncountable, so it takes no article. 'API' starts with a vowel sound, so it takes 'an'."
+        },
+        {
+          "wrong": "The users always want the fast apps.",
+          "right": "Users always want fast apps.",
+          "why": "For general statements about all users and apps, use plural nouns with no article."
+        }
+      ],
+      "exercises": [
+        {
+          "type": "fill-blank",
+          "prompt": "I'm working on ___ issue with ___ login page. ___ issue only happens on Safari.",
+          "answer": "an / the / The",
+          "explanation": "'Issue' is mentioned for the first time and starts with a vowel sound, so it takes 'an'. 'The login page' is unique in the product. The second 'issue' is now known, so it takes 'the'."
+        },
+        {
+          "type": "fill-blank",
+          "prompt": "It took ___ hour to migrate ___ database, but ___ data was safe.",
+          "answer": "an / the / the",
+          "explanation": "'Hour' starts with a silent h, a vowel sound, so it takes 'an'. 'The database' is the specific one you both know. 'The data' means the specific data in that database."
+        },
+        {
+          "type": "correct-the-sentence",
+          "prompt": "She gave me a good advice about system design.",
+          "answer": "She gave me some good advice about system design.",
+          "explanation": "'Advice' is uncountable and cannot take 'a'. 'System design' is a general field, so it takes no article."
+        },
+        {
+          "type": "correct-the-sentence",
+          "prompt": "I have three years of experience in the Java and I worked at the Amazon.",
+          "answer": "I have three years of experience in Java, and I worked at Amazon.",
+          "explanation": "Names of programming languages and companies usually take no article."
+        },
+        {
+          "type": "fill-blank",
+          "prompt": "This is ___ fastest solution, but it's not ___ only option. We could also use ___ cache.",
+          "answer": "the / the / a",
+          "explanation": "Superlatives ('fastest') and 'only' take 'the'. 'A cache' means one cache of any kind, mentioned for the first time."
+        },
+        {
+          "type": "correct-the-sentence",
+          "prompt": "We need a unique ID for every users and an useful error message.",
+          "answer": "We need a unique ID for every user and a useful error message.",
+          "explanation": "'Unique' and 'useful' start with a 'yoo' sound, a consonant sound, so they take 'a'. 'Every' is followed by a singular noun."
+        }
+      ]
+    },
+    "speaking": [
+      {
+        "context": "meeting",
+        "prompt": "Give a 1-minute standup update: what you did yesterday, what you'll do today and one blocker. Mention at least one bug, one pull request and one teammate's feedback.",
+        "tips": [
+          "Introduce each item with 'a/an' first, then switch to 'the' when you refer to it again.",
+          "Remember that 'feedback' and 'progress' are uncountable: say 'some feedback' and 'good progress'."
+        ],
+        "usefulPhrases": [
+          "Yesterday I finished the work on...",
+          "I'm currently blocked by an issue with...",
+          "I got some feedback from ... on the pull request."
+        ]
+      },
+      {
+        "context": "meeting",
+        "prompt": "Explain a technical decision to a non-technical product manager: why the team chose to add a cache instead of buying a bigger server. Talk for 1-2 minutes.",
+        "tips": [
+          "Use one simple analogy, for example a cache is like keeping your most-used tools on the desk instead of in the storage room.",
+          "Finish with the business impact: speed, cost or user experience."
+        ],
+        "usefulPhrases": [
+          "In simple terms, a cache is...",
+          "The main benefit for users is...",
+          "Compared to the other option, this one is cheaper because..."
+        ]
+      },
+      {
+        "context": "interview",
+        "prompt": "Answer 'Tell me about yourself' in 90 seconds: your current role, one project you're proud of and why you want this job.",
+        "tips": [
+          "Use 'a' for your job title ('I'm a backend engineer') and no article for languages and companies ('I use Go at Stripe').",
+          "Structure it as present, past, future so it sounds organized."
+        ],
+        "usefulPhrases": [
+          "I'm a ... engineer with ... years of experience in...",
+          "One project I'm especially proud of is...",
+          "I'm excited about this role because..."
+        ]
+      },
+      {
+        "context": "interview",
+        "prompt": "Describe a time you found and fixed a difficult bug. Use the STAR method (Situation, Task, Action, Result) and speak for about 2 minutes.",
+        "tips": [
+          "Move from 'a' to 'the' as the story progresses: 'We had a memory leak... The leak came from...'",
+          "Give a measurable result, such as response time, error rate or hours saved."
+        ],
+        "usefulPhrases": [
+          "The situation was that...",
+          "My first step was to...",
+          "As a result, we reduced ... by ... percent."
+        ]
+      },
+      {
+        "context": "daily",
+        "prompt": "Explain what an API is to a friend who doesn't work in tech, using a restaurant analogy. Speak for 1-2 minutes.",
+        "tips": [
+          "Say 'an API' with clear vowel sounds (ay-pee-eye), and use 'the waiter' and 'the kitchen' once you have introduced them.",
+          "Check understanding with a short question in the middle."
+        ],
+        "usefulPhrases": [
+          "Think of it like a restaurant...",
+          "The waiter takes your order to the kitchen and...",
+          "Does that make sense so far?"
+        ]
+      },
+      {
+        "context": "daily",
+        "prompt": "Tell a coworker about your weekend over coffee: one place you went, one thing you did and one recommendation (a movie, restaurant or book).",
+        "tips": [
+          "Use general statements without articles for opinions ('I love hiking', 'Coffee here is great').",
+          "Ask a follow-up question to keep the conversation going."
+        ],
+        "usefulPhrases": [
+          "I went to a great place called...",
+          "You should definitely try...",
+          "How about you? Did you do anything fun?"
+        ]
+      }
+    ],
+    "writing": [
+      {
+        "prompt": "Write a 4-5 sentence Slack message to your team announcing that a production incident is resolved. Include what happened, the fix and the next step.",
+        "tip": "Introduce the incident with 'an' ('We had an outage'), then use 'the' for every later mention ('The outage was caused by...'). Underline every singular noun and check that each one has an article."
+      },
+      {
+        "prompt": "Write a short paragraph (5-6 sentences) for your LinkedIn 'About' section describing your role, your main skills and what you enjoy building.",
+        "tip": "Use 'a/an' for your role ('I'm a full-stack engineer'), no article for languages and tools ('I work with TypeScript and AWS'), and no article for general uncountable nouns like 'software' and 'experience'."
+      }
+    ]
+  }
+}

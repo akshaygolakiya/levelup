@@ -1,0 +1,38 @@
+{
+  "concepts": [
+    { "track": "System Design", "topic": "How a request travels: DNS, TCP, TLS, load balancer, app server, database" },
+    { "track": "System Design", "topic": "Caching: where to cache, eviction, invalidation, stampedes" },
+    { "track": "Databases", "topic": "Indexes: B-trees, how a query uses them, and why they slow writes" },
+    { "track": "Distributed Systems", "topic": "Consistency models: linearizable, eventual, causal, and what CAP really says" },
+    { "track": "System Design", "topic": "Consistent hashing and how sharding avoids reshuffling everything" },
+    { "track": "Distributed Systems", "topic": "Consensus: Raft explained step by step" },
+    { "track": "Databases", "topic": "Transactions and isolation levels: dirty reads, phantoms, snapshot isolation" },
+    { "track": "System Design", "topic": "Message queues and Kafka: partitions, offsets, delivery guarantees" },
+    { "track": "Backend", "topic": "Idempotency, retries and exactly-once illusions" },
+    { "track": "Security", "topic": "AuthN vs AuthZ: sessions, JWT, OAuth2/OIDC flows and common mistakes" },
+    { "track": "Frontend", "topic": "What happens in a browser: parse, layout, paint, and why it matters for performance" },
+    { "track": "Cloud", "topic": "Containers and Kubernetes: what a pod, a deployment and a service actually are" },
+    { "track": "AI Engineering", "topic": "How LLMs work for an engineer: tokens, context, sampling, and what limits them" },
+    { "track": "AI Engineering", "topic": "RAG: chunking, embeddings, retrieval and why it fails" }
+  ],
+  "grammar": [
+    "Present perfect vs simple past: when to use which in work updates",
+    "Articles (a, an, the, no article): the rules that cause most mistakes",
+    "Prepositions of time and place: in, on, at",
+    "Subject-verb agreement with tricky subjects",
+    "Conditionals: zero, first, second and third, for explaining decisions",
+    "Polite and diplomatic English for meetings: softening, disagreeing, pushing back",
+    "Phrasal verbs engineers use every day",
+    "Reported speech: relaying what someone said"
+  ],
+  "wordTiers": [
+    "everyday words an educated speaker uses but learners often miss",
+    "advanced vocabulary for articulate speaking and writing",
+    "workplace and meeting language",
+    "interview language: describing impact, trade-offs and ownership",
+    "tech-adjacent English: words used when explaining systems and decisions"
+  ],
+  "speaking": [
+    "meeting", "interview", "daily"
+  ]
+}

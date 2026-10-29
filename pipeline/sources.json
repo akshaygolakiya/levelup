@@ -1,0 +1,422 @@
+{
+  "maxAgeDays": 10,
+  "perSourceCap": 2,
+  "feeds": [
+    {
+      "name": "Netflix Tech Blog",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://netflixtechblog.com/feed",
+      "why": "company"
+    },
+    {
+      "name": "Cloudflare Blog",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://blog.cloudflare.com/rss/",
+      "why": "company"
+    },
+    {
+      "name": "Meta Engineering",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://engineering.fb.com/feed/",
+      "why": "company"
+    },
+    {
+      "name": "GitHub Engineering",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://github.blog/engineering/feed/",
+      "why": "company"
+    },
+    {
+      "name": "Stripe Engineering",
+      "track": "backend",
+      "grade": "A",
+      "url": "https://stripe.com/blog/feed.rss",
+      "why": "company"
+    },
+    {
+      "name": "Discord Blog",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://discord.com/blog/rss.xml",
+      "why": "company"
+    },
+    {
+      "name": "Shopify Engineering",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://shopify.engineering/blog.atom",
+      "why": "company"
+    },
+    {
+      "name": "Figma Engineering",
+      "track": "systems",
+      "grade": "B",
+      "url": "https://www.figma.com/blog/feed/atom.xml",
+      "why": "company"
+    },
+    {
+      "name": "Spotify Engineering",
+      "track": "systems",
+      "grade": "B",
+      "url": "https://engineering.atspotify.com/feed/",
+      "why": "company"
+    },
+    {
+      "name": "Slack Engineering",
+      "track": "systems",
+      "grade": "B",
+      "url": "https://slack.engineering/feed/",
+      "why": "company"
+    },
+    {
+      "name": "Dropbox Tech",
+      "track": "systems",
+      "grade": "B",
+      "url": "https://dropbox.tech/feed",
+      "why": "company"
+    },
+    {
+      "name": "Airbnb Engineering",
+      "track": "systems",
+      "grade": "B",
+      "url": "https://medium.com/feed/airbnb-engineering",
+      "why": "company"
+    },
+    {
+      "name": "PlanetScale",
+      "track": "databases",
+      "grade": "A",
+      "url": "https://planetscale.com/blog/feed.atom",
+      "why": "databases"
+    },
+    {
+      "name": "AWS Architecture Blog",
+      "track": "cloud",
+      "grade": "B",
+      "url": "https://aws.amazon.com/blogs/architecture/feed/",
+      "why": "cloud"
+    },
+    {
+      "name": "Google Cloud SRE/DevOps",
+      "track": "cloud",
+      "grade": "B",
+      "url": "https://cloudblog.withgoogle.com/products/devops-sre/rss/",
+      "why": "cloud"
+    },
+    {
+      "name": "Fly.io Blog",
+      "track": "cloud",
+      "grade": "B",
+      "url": "https://fly.io/blog/feed.xml",
+      "why": "cloud"
+    },
+    {
+      "name": "Dan Luu",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://danluu.com/atom.xml",
+      "maxAgeDays": 60,
+      "why": "senior favourite"
+    },
+    {
+      "name": "Marc Brooker (AWS)",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://brooker.co.za/blog/rss.xml",
+      "maxAgeDays": 45,
+      "why": "distributed systems, AWS principal engineer"
+    },
+    {
+      "name": "Murat Demirbas",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://muratbuffalo.blogspot.com/feeds/posts/default",
+      "maxAgeDays": 30,
+      "why": "distributed systems and papers"
+    },
+    {
+      "name": "Martin Kleppmann",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://martin.kleppmann.com/feed.rss",
+      "maxAgeDays": 120,
+      "why": "author of Designing Data-Intensive Applications"
+    },
+    {
+      "name": "Aphyr",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://aphyr.com/posts.atom",
+      "maxAgeDays": 120,
+      "why": "Jepsen author, correctness"
+    },
+    {
+      "name": "Brendan Gregg",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://www.brendangregg.com/blog/rss.xml",
+      "maxAgeDays": 120,
+      "why": "performance engineering"
+    },
+    {
+      "name": "Hillel Wayne",
+      "track": "design",
+      "grade": "A",
+      "url": "https://www.hillelwayne.com/index.xml",
+      "maxAgeDays": 60,
+      "why": "formal methods, software craft"
+    },
+    {
+      "name": "Will Larson",
+      "track": "career",
+      "grade": "A",
+      "url": "https://lethain.com/feeds.xml",
+      "maxAgeDays": 45,
+      "why": "staff-plus engineering, architecture"
+    },
+    {
+      "name": "Charity Majors",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://charity.wtf/feed/",
+      "maxAgeDays": 45,
+      "why": "observability, engineering leadership"
+    },
+    {
+      "name": "Phil Eaton",
+      "track": "databases",
+      "grade": "B",
+      "url": "https://notes.eatonphil.com/rss.xml",
+      "maxAgeDays": 45,
+      "why": "database internals"
+    },
+    {
+      "name": "matklad",
+      "track": "design",
+      "grade": "B",
+      "url": "https://matklad.github.io/feed.xml",
+      "maxAgeDays": 60,
+      "why": "compilers, tooling"
+    },
+    {
+      "name": "Eli Bendersky",
+      "track": "backend",
+      "grade": "B",
+      "url": "https://eli.thegreenplace.net/feeds/all.atom.xml",
+      "maxAgeDays": 45,
+      "why": "programming depth"
+    },
+    {
+      "name": "Julia Evans",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://jvns.ca/atom.xml",
+      "maxAgeDays": 60,
+      "why": "making hard systems topics clear"
+    },
+    {
+      "name": "Martin Fowler",
+      "track": "design",
+      "grade": "A",
+      "url": "https://martinfowler.com/feed.atom",
+      "maxAgeDays": 30,
+      "why": "architecture and design"
+    },
+    {
+      "name": "The Pragmatic Engineer",
+      "track": "career",
+      "grade": "A",
+      "url": "https://newsletter.pragmaticengineer.com/feed",
+      "maxAgeDays": 14,
+      "why": "industry and big-tech engineering"
+    },
+    {
+      "name": "Neo Kim System Design",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://newsletter.systemdesign.one/feed",
+      "maxAgeDays": 14,
+      "why": "system design"
+    },
+    {
+      "name": "ByteByteGo",
+      "track": "systems",
+      "grade": "A",
+      "url": "https://blog.bytebytego.com/feed",
+      "maxAgeDays": 14,
+      "why": "system design"
+    },
+    {
+      "name": "Refactoring",
+      "track": "career",
+      "grade": "B",
+      "url": "https://refactoring.fm/feed",
+      "maxAgeDays": 14,
+      "why": "engineering management and practice"
+    },
+    {
+      "name": "Krebs on Security",
+      "track": "security",
+      "grade": "A",
+      "url": "https://krebsonsecurity.com/feed/",
+      "maxAgeDays": 21
+    },
+    {
+      "name": "Schneier on Security",
+      "track": "security",
+      "grade": "A",
+      "url": "https://www.schneier.com/feed/atom/",
+      "maxAgeDays": 14
+    },
+    {
+      "name": "Troy Hunt",
+      "track": "security",
+      "grade": "B",
+      "url": "https://www.troyhunt.com/rss/",
+      "maxAgeDays": 21
+    },
+    {
+      "name": "web.dev",
+      "track": "frontend",
+      "grade": "B",
+      "url": "https://web.dev/feed.xml",
+      "maxAgeDays": 30
+    },
+    {
+      "name": "Josh Comeau",
+      "track": "frontend",
+      "grade": "A",
+      "url": "https://www.joshwcomeau.com/rss.xml",
+      "maxAgeDays": 60,
+      "why": "deep CSS/React explanations"
+    },
+    {
+      "name": "Overreacted (Dan Abramov)",
+      "track": "frontend",
+      "grade": "A",
+      "url": "https://overreacted.io/rss.xml",
+      "maxAgeDays": 90
+    },
+    {
+      "name": "Go Blog",
+      "track": "backend",
+      "grade": "B",
+      "url": "https://go.dev/blog/feed.atom",
+      "maxAgeDays": 45
+    },
+    {
+      "name": "Simon Willison",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://simonwillison.net/atom/everything/",
+      "maxAgeDays": 7,
+      "why": "most-read practitioner on LLMs"
+    },
+    {
+      "name": "Latent Space",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://www.latent.space/feed",
+      "maxAgeDays": 14,
+      "why": "AI engineering"
+    },
+    {
+      "name": "Interconnects",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://www.interconnects.ai/feed",
+      "maxAgeDays": 14,
+      "why": "models and training"
+    },
+    {
+      "name": "Sebastian Raschka",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://magazine.sebastianraschka.com/feed",
+      "maxAgeDays": 30,
+      "why": "LLM internals"
+    },
+    {
+      "name": "Hamel Husain",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://hamel.dev/index.xml",
+      "maxAgeDays": 45,
+      "why": "evals and applied LLMs"
+    },
+    {
+      "name": "Eugene Yan",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://eugeneyan.com/rss/",
+      "maxAgeDays": 120,
+      "why": "applied ML and LLM systems"
+    },
+    {
+      "name": "Lilian Weng",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://lilianweng.github.io/index.xml",
+      "maxAgeDays": 180,
+      "why": "deep surveys"
+    },
+    {
+      "name": "Andrej Karpathy",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://karpathy.bearblog.dev/feed/",
+      "maxAgeDays": 180
+    },
+    {
+      "name": "Hugging Face Blog",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://huggingface.co/blog/feed.xml",
+      "maxAgeDays": 10
+    },
+    {
+      "name": "OpenAI News",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://openai.com/news/rss.xml",
+      "maxAgeDays": 10
+    },
+    {
+      "name": "Google DeepMind",
+      "track": "ai",
+      "grade": "A",
+      "url": "https://deepmind.google/blog/rss.xml",
+      "maxAgeDays": 10
+    },
+    {
+      "name": "Import AI",
+      "track": "ai",
+      "grade": "B",
+      "url": "https://importai.substack.com/feed",
+      "maxAgeDays": 14
+    },
+    {
+      "name": "Google Research",
+      "track": "ai",
+      "grade": "B",
+      "url": "https://research.google/blog/rss/",
+      "maxAgeDays": 14
+    },
+    {
+      "name": "Lobsters",
+      "track": "general",
+      "grade": "A",
+      "url": "https://lobste.rs/rss",
+      "maxAgeDays": 3,
+      "why": "programmer-run link board, high signal"
+    }
+  ],
+  "hackerNews": {
+    "minScore": 150,
+    "take": 40
+  }
+}

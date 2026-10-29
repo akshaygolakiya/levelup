@@ -1,0 +1,828 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		03317699E4D87826AEF58101 /* GrammarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EE021026B810841C838E004 /* GrammarView.swift */; };
+		084AE27E6F0F85230651D9F5 /* ReaderDoc.swift in Sources */ = {isa = PBXBuildFile; fileRef = 209CB406BC6080B93230C390 /* ReaderDoc.swift */; };
+		0C3FD5AC138CE3136565AE9D /* PracticeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AB82ABAEC7B675FD5CDD5CF /* PracticeStore.swift */; };
+		0FE672055295C158FB5ABFAC /* ReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949604ACC1B024497D855E17 /* ReminderService.swift */; };
+		1028FF09C52EB49F91D78571 /* DataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDD5ACEBBE29E681698EC1C2 /* DataService.swift */; };
+		143E268B7B506568E194E663 /* scenario-multiday.json in Resources */ = {isa = PBXBuildFile; fileRef = FD0B7CBED0B6C57892620723 /* scenario-multiday.json */; };
+		1D301F71EAC7CF13936B9585 /* LevelUpApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A62EEC1AA1017AC18980DF45 /* LevelUpApp.swift */; };
+		2802DBAD19E9D44E0E779FE5 /* PersistenceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97181C75E9C36AC49860A96F /* PersistenceModels.swift */; };
+		2DCF314ED1D805E43588A773 /* CardStackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 820855B791C40B7089B5C105 /* CardStackView.swift */; };
+		30E346366BDE9E6E903F47B5 /* MeshBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 404C3C8D18EDD1B11DC8A50F /* MeshBackground.swift */; };
+		34DE2B1FD84A5DCE67E08FE0 /* LevelUpTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD2F7236AF1A2D07F86B6A57 /* LevelUpTests.swift */; };
+		38669D2176D1833B75E10C34 /* SpeechRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FECD602E83E9E39899A73BC0 /* SpeechRecorder.swift */; };
+		3E75B37B4E301CDDAA09E027 /* Preferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2C88A9AC8BDCF2CDE345B70 /* Preferences.swift */; };
+		453900498C2F1ED40D277A43 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BFEDFBCCB54C372ABCCBE05 /* TodayView.swift */; };
+		4FDC9F8EC6D0F59F4C67932A /* SpeechOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F3D9E517A8F069F93D099F3 /* SpeechOutput.swift */; };
+		569A97CCA2087652F11AB2BD /* scenario-missing.json in Resources */ = {isa = PBXBuildFile; fileRef = BB9F6D167E671B450B17586E /* scenario-missing.json */; };
+		5B2C79F99AE4B7CFF34A5296 /* OrbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ACDE918D47EF28E01B46F0F /* OrbView.swift */; };
+		5E81CC6077E71A2BA2061202 /* IndexAndWeekly.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E4B2988AA5F91901CE189C /* IndexAndWeekly.swift */; };
+		612BA3958120D7D0862EEC6A /* LaunchConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84ED9EB662E1ABDFB6D5D333 /* LaunchConfig.swift */; };
+		7147F1197227E147ACD2B1CA /* FlipCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B80A4CDD019B9AEA334EB73F /* FlipCard.swift */; };
+		719E156F95D49179F8D77C6A /* Content.swift in Sources */ = {isa = PBXBuildFile; fileRef = F913BA6B4FA5E6923D9C5E69 /* Content.swift */; };
+		794C024E8460F599EC72B57E /* ContentRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1921EAD236BA5E184AD6DDD /* ContentRepository.swift */; };
+		7AC96A606026FD88E8595F2E /* LevelUpUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1905F150BEBE57EA2A438DD /* LevelUpUITests.swift */; };
+		87CEA7EF9E4B4B83F8B9B9C9 /* SelectableText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101B8A3B2A1718EB9551D2A6 /* SelectableText.swift */; };
+		88892E7B6531B6C4545FA8DD /* ReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44558FF7AFD6FCA7761411A3 /* ReaderView.swift */; };
+		89871CF2395ADFC6AD4106E7 /* DecodingHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 953B7CAA700AC8875BF664DF /* DecodingHelpers.swift */; };
+		8B679999CF7F88F33F6A6D12 /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CD5900F2CA74D6289918C9 /* Glass.swift */; };
+		9283AFC6A730ACC1339AFF10 /* ProgressTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5029616A2E7320AE8B0D1978 /* ProgressTransfer.swift */; };
+		92AD4B9705E3E40230363076 /* WordsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4EB972B5A4C1FC46929BA98 /* WordsView.swift */; };
+		9D6A4E51592F0135BD906EE9 /* ProgressStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F642E4D6CBA9ADF8C5AC82E1 /* ProgressStore.swift */; };
+		A528B1C5B82DE30AF5FDD72E /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 327AA7EA72147A20088ED6E5 /* DesignTokens.swift */; };
+		A63A481B34160511D7FD046B /* scenario-large.json in Resources */ = {isa = PBXBuildFile; fileRef = 4E391617F08E6F2946C9764A /* scenario-large.json */; };
+		A7667525F65705CED34A2754 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B705F601AC7E92816806DD03 /* RootView.swift */; };
+		A84087B4EFA85D071E6FC905 /* index.json in Resources */ = {isa = PBXBuildFile; fileRef = 34895DF1E715B4C1B12D720B /* index.json */; };
+		ACA982B8EF5FA87AF8202CBE /* ItemDestination.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96ADF9C37108CD3923F61C07 /* ItemDestination.swift */; };
+		B62590A940A9C7A54237028E /* SpeakingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5C8F142C8DDF605C68E8B9 /* SpeakingView.swift */; };
+		C398FEF4E7C33A68C0A0E861 /* SpeechAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1279BE583341378E9A376CAD /* SpeechAnalysis.swift */; };
+		C98F05BA0BB1B0685C8B1F82 /* ItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB7BE5DEEA4A1F3BF635E35F /* ItemRow.swift */; };
+		D7D90513CE49990B3945863E /* 2026-10-29.json in Resources */ = {isa = PBXBuildFile; fileRef = 0FF3F15C3C39DBEF0E534660 /* 2026-10-29.json */; };
+		DA87F45E84E165C9E3D84F9D /* ArchiveView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E66B8580DBD9A98BDC477775 /* ArchiveView.swift */; };
+		E82788A23F98BD95322C3204 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F57DBB781B60FA5C42FFA0 /* SettingsView.swift */; };
+		EAAF7D64C14C82B6C9AB5538 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5609B8ADB5B30285137FD81 /* AppModel.swift */; };
+		ECC0CF7720D1D7DE6EEEA161 /* ArticleLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A79B7B229730002C1DF6C942 /* ArticleLink.swift */; };
+		F18F85FB056AC69EDD9E5F40 /* Domain.swift in Sources */ = {isa = PBXBuildFile; fileRef = A55AF3E5DBD55D7864AF0B88 /* Domain.swift */; };
+		FC24AA1DC8DAEE7AF012263D /* WeeklyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAF4D630E9D4D50ABBFF265A /* WeeklyView.swift */; };
+		FD9441E17283C01A90821909 /* SavedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD119648518EDBDC535A8A45 /* SavedView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		60D343D7AA501A37D5C68D91 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 47DC3218D0F0966D22249628 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 53AD6394492882D80DD55FB5;
+			remoteInfo = LevelUp;
+		};
+		9E932D4A07FD7F908AD1AAE3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 47DC3218D0F0966D22249628 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 53AD6394492882D80DD55FB5;
+			remoteInfo = LevelUp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0ACDE918D47EF28E01B46F0F /* OrbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrbView.swift; sourceTree = "<group>"; };
+		0FF3F15C3C39DBEF0E534660 /* 2026-10-29.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "2026-10-29.json"; sourceTree = "<group>"; };
+		101B8A3B2A1718EB9551D2A6 /* SelectableText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableText.swift; sourceTree = "<group>"; };
+		1279BE583341378E9A376CAD /* SpeechAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechAnalysis.swift; sourceTree = "<group>"; };
+		209CB406BC6080B93230C390 /* ReaderDoc.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderDoc.swift; sourceTree = "<group>"; };
+		327AA7EA72147A20088ED6E5 /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
+		34895DF1E715B4C1B12D720B /* index.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = index.json; sourceTree = "<group>"; };
+		404C3C8D18EDD1B11DC8A50F /* MeshBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeshBackground.swift; sourceTree = "<group>"; };
+		44558FF7AFD6FCA7761411A3 /* ReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReaderView.swift; sourceTree = "<group>"; };
+		44E4B2988AA5F91901CE189C /* IndexAndWeekly.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexAndWeekly.swift; sourceTree = "<group>"; };
+		4BFEDFBCCB54C372ABCCBE05 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		4E391617F08E6F2946C9764A /* scenario-large.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "scenario-large.json"; sourceTree = "<group>"; };
+		5029616A2E7320AE8B0D1978 /* ProgressTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressTransfer.swift; sourceTree = "<group>"; };
+		5B9AAA28E302C8679C32F525 /* LevelUp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = LevelUp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6E5C8F142C8DDF605C68E8B9 /* SpeakingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeakingView.swift; sourceTree = "<group>"; };
+		6F3D9E517A8F069F93D099F3 /* SpeechOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechOutput.swift; sourceTree = "<group>"; };
+		820855B791C40B7089B5C105 /* CardStackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStackView.swift; sourceTree = "<group>"; };
+		84ED9EB662E1ABDFB6D5D333 /* LaunchConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchConfig.swift; sourceTree = "<group>"; };
+		87CD5900F2CA74D6289918C9 /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Glass.swift; sourceTree = "<group>"; };
+		949604ACC1B024497D855E17 /* ReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderService.swift; sourceTree = "<group>"; };
+		953B7CAA700AC8875BF664DF /* DecodingHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DecodingHelpers.swift; sourceTree = "<group>"; };
+		96ADF9C37108CD3923F61C07 /* ItemDestination.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDestination.swift; sourceTree = "<group>"; };
+		97181C75E9C36AC49860A96F /* PersistenceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceModels.swift; sourceTree = "<group>"; };
+		9AB82ABAEC7B675FD5CDD5CF /* PracticeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PracticeStore.swift; sourceTree = "<group>"; };
+		9EE021026B810841C838E004 /* GrammarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrammarView.swift; sourceTree = "<group>"; };
+		9FEEA8F247F071C19EE3BBA2 /* LevelUpUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LevelUpUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1905F150BEBE57EA2A438DD /* LevelUpUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelUpUITests.swift; sourceTree = "<group>"; };
+		A55AF3E5DBD55D7864AF0B88 /* Domain.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Domain.swift; sourceTree = "<group>"; };
+		A62EEC1AA1017AC18980DF45 /* LevelUpApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelUpApp.swift; sourceTree = "<group>"; };
+		A79B7B229730002C1DF6C942 /* ArticleLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArticleLink.swift; sourceTree = "<group>"; };
+		AAF4D630E9D4D50ABBFF265A /* WeeklyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyView.swift; sourceTree = "<group>"; };
+		B705F601AC7E92816806DD03 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		B80A4CDD019B9AEA334EB73F /* FlipCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlipCard.swift; sourceTree = "<group>"; };
+		BB9F6D167E671B450B17586E /* scenario-missing.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "scenario-missing.json"; sourceTree = "<group>"; };
+		BD2F7236AF1A2D07F86B6A57 /* LevelUpTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LevelUpTests.swift; sourceTree = "<group>"; };
+		C5609B8ADB5B30285137FD81 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		C7F57DBB781B60FA5C42FFA0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		DB7BE5DEEA4A1F3BF635E35F /* ItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemRow.swift; sourceTree = "<group>"; };
+		DD119648518EDBDC535A8A45 /* SavedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedView.swift; sourceTree = "<group>"; };
+		DDD5ACEBBE29E681698EC1C2 /* DataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataService.swift; sourceTree = "<group>"; };
+		E1921EAD236BA5E184AD6DDD /* ContentRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentRepository.swift; sourceTree = "<group>"; };
+		E4EB972B5A4C1FC46929BA98 /* WordsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordsView.swift; sourceTree = "<group>"; };
+		E66B8580DBD9A98BDC477775 /* ArchiveView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveView.swift; sourceTree = "<group>"; };
+		F238B5592B13977CD9D29088 /* LevelUpTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = LevelUpTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F2C88A9AC8BDCF2CDE345B70 /* Preferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Preferences.swift; sourceTree = "<group>"; };
+		F642E4D6CBA9ADF8C5AC82E1 /* ProgressStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressStore.swift; sourceTree = "<group>"; };
+		F913BA6B4FA5E6923D9C5E69 /* Content.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Content.swift; sourceTree = "<group>"; };
+		FD0B7CBED0B6C57892620723 /* scenario-multiday.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "scenario-multiday.json"; sourceTree = "<group>"; };
+		FECD602E83E9E39899A73BC0 /* SpeechRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecorder.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		2F803D16B78495953C489FEC /* LevelUp */ = {
+			isa = PBXGroup;
+			children = (
+				AA25D5E56BDDDFD421A6DB35 /* App */,
+				324BE1F0D3366FDBD58F64B1 /* Design */,
+				C70B1E8243ACE828A05B4F22 /* Features */,
+				370B45E3304636A9D6D12FA8 /* Models */,
+				E6586AC3A99FECE427C93EE1 /* Resources */,
+				AAD420CF4A4D8E081585C5C3 /* Services */,
+			);
+			path = LevelUp;
+			sourceTree = "<group>";
+		};
+		30CCEA207497CBC3563F03A8 /* Saved */ = {
+			isa = PBXGroup;
+			children = (
+				DD119648518EDBDC535A8A45 /* SavedView.swift */,
+			);
+			path = Saved;
+			sourceTree = "<group>";
+		};
+		324BE1F0D3366FDBD58F64B1 /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				A79B7B229730002C1DF6C942 /* ArticleLink.swift */,
+				327AA7EA72147A20088ED6E5 /* DesignTokens.swift */,
+				87CD5900F2CA74D6289918C9 /* Glass.swift */,
+				404C3C8D18EDD1B11DC8A50F /* MeshBackground.swift */,
+			);
+			path = Design;
+			sourceTree = "<group>";
+		};
+		370B45E3304636A9D6D12FA8 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				F913BA6B4FA5E6923D9C5E69 /* Content.swift */,
+				953B7CAA700AC8875BF664DF /* DecodingHelpers.swift */,
+				A55AF3E5DBD55D7864AF0B88 /* Domain.swift */,
+				44E4B2988AA5F91901CE189C /* IndexAndWeekly.swift */,
+				97181C75E9C36AC49860A96F /* PersistenceModels.swift */,
+				1279BE583341378E9A376CAD /* SpeechAnalysis.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		4587F5A2A0A04D789F405209 /* Words */ = {
+			isa = PBXGroup;
+			children = (
+				B80A4CDD019B9AEA334EB73F /* FlipCard.swift */,
+				E4EB972B5A4C1FC46929BA98 /* WordsView.swift */,
+			);
+			path = Words;
+			sourceTree = "<group>";
+		};
+		4A9300F0E0D1E8D0C6199110 /* Mock */ = {
+			isa = PBXGroup;
+			children = (
+				4E391617F08E6F2946C9764A /* scenario-large.json */,
+				BB9F6D167E671B450B17586E /* scenario-missing.json */,
+				FD0B7CBED0B6C57892620723 /* scenario-multiday.json */,
+			);
+			path = Mock;
+			sourceTree = "<group>";
+		};
+		4D2FFF195DAC527EC0FE5A68 /* Speaking */ = {
+			isa = PBXGroup;
+			children = (
+				0ACDE918D47EF28E01B46F0F /* OrbView.swift */,
+				6E5C8F142C8DDF605C68E8B9 /* SpeakingView.swift */,
+			);
+			path = Speaking;
+			sourceTree = "<group>";
+		};
+		56A0C3CF2FFECA37F3522207 /* Reader */ = {
+			isa = PBXGroup;
+			children = (
+				209CB406BC6080B93230C390 /* ReaderDoc.swift */,
+				44558FF7AFD6FCA7761411A3 /* ReaderView.swift */,
+				101B8A3B2A1718EB9551D2A6 /* SelectableText.swift */,
+			);
+			path = Reader;
+			sourceTree = "<group>";
+		};
+		5C3C2D2312B01D9393A4509B /* LevelUpUITests */ = {
+			isa = PBXGroup;
+			children = (
+				A1905F150BEBE57EA2A438DD /* LevelUpUITests.swift */,
+			);
+			path = LevelUpUITests;
+			sourceTree = "<group>";
+		};
+		5C428C961A7B3EE98CF76F6B /* Today */ = {
+			isa = PBXGroup;
+			children = (
+				DB7BE5DEEA4A1F3BF635E35F /* ItemRow.swift */,
+				4BFEDFBCCB54C372ABCCBE05 /* TodayView.swift */,
+			);
+			path = Today;
+			sourceTree = "<group>";
+		};
+		6432CBC55BFCD8058BE76C65 /* LevelUpTests */ = {
+			isa = PBXGroup;
+			children = (
+				BD2F7236AF1A2D07F86B6A57 /* LevelUpTests.swift */,
+			);
+			path = LevelUpTests;
+			sourceTree = "<group>";
+		};
+		8A137A5816CC69B8148BF61A /* Cards */ = {
+			isa = PBXGroup;
+			children = (
+				820855B791C40B7089B5C105 /* CardStackView.swift */,
+			);
+			path = Cards;
+			sourceTree = "<group>";
+		};
+		A24FF271432D358475CCB264 /* Weekly */ = {
+			isa = PBXGroup;
+			children = (
+				AAF4D630E9D4D50ABBFF265A /* WeeklyView.swift */,
+			);
+			path = Weekly;
+			sourceTree = "<group>";
+		};
+		A9903802C283C91DBD8CECD3 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5B9AAA28E302C8679C32F525 /* LevelUp.app */,
+				F238B5592B13977CD9D29088 /* LevelUpTests.xctest */,
+				9FEEA8F247F071C19EE3BBA2 /* LevelUpUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AA25D5E56BDDDFD421A6DB35 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				C5609B8ADB5B30285137FD81 /* AppModel.swift */,
+				84ED9EB662E1ABDFB6D5D333 /* LaunchConfig.swift */,
+				A62EEC1AA1017AC18980DF45 /* LevelUpApp.swift */,
+				F2C88A9AC8BDCF2CDE345B70 /* Preferences.swift */,
+				B705F601AC7E92816806DD03 /* RootView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		AAD420CF4A4D8E081585C5C3 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				E1921EAD236BA5E184AD6DDD /* ContentRepository.swift */,
+				DDD5ACEBBE29E681698EC1C2 /* DataService.swift */,
+				9AB82ABAEC7B675FD5CDD5CF /* PracticeStore.swift */,
+				F642E4D6CBA9ADF8C5AC82E1 /* ProgressStore.swift */,
+				5029616A2E7320AE8B0D1978 /* ProgressTransfer.swift */,
+				949604ACC1B024497D855E17 /* ReminderService.swift */,
+				6F3D9E517A8F069F93D099F3 /* SpeechOutput.swift */,
+				FECD602E83E9E39899A73BC0 /* SpeechRecorder.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		C05F118C648767FE3BFC157D /* Archive */ = {
+			isa = PBXGroup;
+			children = (
+				E66B8580DBD9A98BDC477775 /* ArchiveView.swift */,
+			);
+			path = Archive;
+			sourceTree = "<group>";
+		};
+		C70B1E8243ACE828A05B4F22 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				96ADF9C37108CD3923F61C07 /* ItemDestination.swift */,
+				C05F118C648767FE3BFC157D /* Archive */,
+				8A137A5816CC69B8148BF61A /* Cards */,
+				DF3FDA88BB8E6D9748BD7F2B /* Grammar */,
+				56A0C3CF2FFECA37F3522207 /* Reader */,
+				30CCEA207497CBC3563F03A8 /* Saved */,
+				DF48FB3E317DE8D0BA7CD227 /* Settings */,
+				4D2FFF195DAC527EC0FE5A68 /* Speaking */,
+				5C428C961A7B3EE98CF76F6B /* Today */,
+				A24FF271432D358475CCB264 /* Weekly */,
+				4587F5A2A0A04D789F405209 /* Words */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		CC79B7360B15AE94EF91CF40 /* Bundled */ = {
+			isa = PBXGroup;
+			children = (
+				0FF3F15C3C39DBEF0E534660 /* 2026-10-29.json */,
+				34895DF1E715B4C1B12D720B /* index.json */,
+			);
+			path = Bundled;
+			sourceTree = "<group>";
+		};
+		DF3FDA88BB8E6D9748BD7F2B /* Grammar */ = {
+			isa = PBXGroup;
+			children = (
+				9EE021026B810841C838E004 /* GrammarView.swift */,
+			);
+			path = Grammar;
+			sourceTree = "<group>";
+		};
+		DF48FB3E317DE8D0BA7CD227 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				C7F57DBB781B60FA5C42FFA0 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		E6586AC3A99FECE427C93EE1 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				CC79B7360B15AE94EF91CF40 /* Bundled */,
+				4A9300F0E0D1E8D0C6199110 /* Mock */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		FC97CA46BDEAF6A79C331315 = {
+			isa = PBXGroup;
+			children = (
+				2F803D16B78495953C489FEC /* LevelUp */,
+				6432CBC55BFCD8058BE76C65 /* LevelUpTests */,
+				5C3C2D2312B01D9393A4509B /* LevelUpUITests */,
+				A9903802C283C91DBD8CECD3 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		53AD6394492882D80DD55FB5 /* LevelUp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DAF1B671AD21421C3E439DD5 /* Build configuration list for PBXNativeTarget "LevelUp" */;
+			buildPhases = (
+				23B62067BD86744C5A7326D1 /* Sources */,
+				26F6C56637AF867F80FCCB64 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = LevelUp;
+			packageProductDependencies = (
+			);
+			productName = LevelUp;
+			productReference = 5B9AAA28E302C8679C32F525 /* LevelUp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AF146E0D29BF44AF109A5EF3 /* LevelUpTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7D6F5F3795A090169CD667FC /* Build configuration list for PBXNativeTarget "LevelUpTests" */;
+			buildPhases = (
+				92F7933B4D680F8073DD3DB5 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C65CD0EB0E34AD2ADF7251B7 /* PBXTargetDependency */,
+			);
+			name = LevelUpTests;
+			packageProductDependencies = (
+			);
+			productName = LevelUpTests;
+			productReference = F238B5592B13977CD9D29088 /* LevelUpTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		FD9A33434F79F0DBE0BB7122 /* LevelUpUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BE3EFF60F46C1BEFFD5850AB /* Build configuration list for PBXNativeTarget "LevelUpUITests" */;
+			buildPhases = (
+				ADE7BCB994C3C22D63E84969 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				9E789451B5CFB06998210F44 /* PBXTargetDependency */,
+			);
+			name = LevelUpUITests;
+			packageProductDependencies = (
+			);
+			productName = LevelUpUITests;
+			productReference = 9FEEA8F247F071C19EE3BBA2 /* LevelUpUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		47DC3218D0F0966D22249628 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					FD9A33434F79F0DBE0BB7122 = {
+						TestTargetID = 53AD6394492882D80DD55FB5;
+					};
+				};
+			};
+			buildConfigurationList = B57FF51F7F41B2882F93E494 /* Build configuration list for PBXProject "LevelUp" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = FC97CA46BDEAF6A79C331315;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A9903802C283C91DBD8CECD3 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				53AD6394492882D80DD55FB5 /* LevelUp */,
+				AF146E0D29BF44AF109A5EF3 /* LevelUpTests */,
+				FD9A33434F79F0DBE0BB7122 /* LevelUpUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		26F6C56637AF867F80FCCB64 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D7D90513CE49990B3945863E /* 2026-10-29.json in Resources */,
+				A84087B4EFA85D071E6FC905 /* index.json in Resources */,
+				A63A481B34160511D7FD046B /* scenario-large.json in Resources */,
+				569A97CCA2087652F11AB2BD /* scenario-missing.json in Resources */,
+				143E268B7B506568E194E663 /* scenario-multiday.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		23B62067BD86744C5A7326D1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EAAF7D64C14C82B6C9AB5538 /* AppModel.swift in Sources */,
+				DA87F45E84E165C9E3D84F9D /* ArchiveView.swift in Sources */,
+				ECC0CF7720D1D7DE6EEEA161 /* ArticleLink.swift in Sources */,
+				2DCF314ED1D805E43588A773 /* CardStackView.swift in Sources */,
+				719E156F95D49179F8D77C6A /* Content.swift in Sources */,
+				794C024E8460F599EC72B57E /* ContentRepository.swift in Sources */,
+				1028FF09C52EB49F91D78571 /* DataService.swift in Sources */,
+				89871CF2395ADFC6AD4106E7 /* DecodingHelpers.swift in Sources */,
+				A528B1C5B82DE30AF5FDD72E /* DesignTokens.swift in Sources */,
+				F18F85FB056AC69EDD9E5F40 /* Domain.swift in Sources */,
+				7147F1197227E147ACD2B1CA /* FlipCard.swift in Sources */,
+				8B679999CF7F88F33F6A6D12 /* Glass.swift in Sources */,
+				03317699E4D87826AEF58101 /* GrammarView.swift in Sources */,
+				5E81CC6077E71A2BA2061202 /* IndexAndWeekly.swift in Sources */,
+				ACA982B8EF5FA87AF8202CBE /* ItemDestination.swift in Sources */,
+				C98F05BA0BB1B0685C8B1F82 /* ItemRow.swift in Sources */,
+				612BA3958120D7D0862EEC6A /* LaunchConfig.swift in Sources */,
+				1D301F71EAC7CF13936B9585 /* LevelUpApp.swift in Sources */,
+				30E346366BDE9E6E903F47B5 /* MeshBackground.swift in Sources */,
+				5B2C79F99AE4B7CFF34A5296 /* OrbView.swift in Sources */,
+				2802DBAD19E9D44E0E779FE5 /* PersistenceModels.swift in Sources */,
+				0C3FD5AC138CE3136565AE9D /* PracticeStore.swift in Sources */,
+				3E75B37B4E301CDDAA09E027 /* Preferences.swift in Sources */,
+				9D6A4E51592F0135BD906EE9 /* ProgressStore.swift in Sources */,
+				9283AFC6A730ACC1339AFF10 /* ProgressTransfer.swift in Sources */,
+				084AE27E6F0F85230651D9F5 /* ReaderDoc.swift in Sources */,
+				88892E7B6531B6C4545FA8DD /* ReaderView.swift in Sources */,
+				0FE672055295C158FB5ABFAC /* ReminderService.swift in Sources */,
+				A7667525F65705CED34A2754 /* RootView.swift in Sources */,
+				FD9441E17283C01A90821909 /* SavedView.swift in Sources */,
+				87CEA7EF9E4B4B83F8B9B9C9 /* SelectableText.swift in Sources */,
+				E82788A23F98BD95322C3204 /* SettingsView.swift in Sources */,
+				B62590A940A9C7A54237028E /* SpeakingView.swift in Sources */,
+				C398FEF4E7C33A68C0A0E861 /* SpeechAnalysis.swift in Sources */,
+				4FDC9F8EC6D0F59F4C67932A /* SpeechOutput.swift in Sources */,
+				38669D2176D1833B75E10C34 /* SpeechRecorder.swift in Sources */,
+				453900498C2F1ED40D277A43 /* TodayView.swift in Sources */,
+				FC24AA1DC8DAEE7AF012263D /* WeeklyView.swift in Sources */,
+				92AD4B9705E3E40230363076 /* WordsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92F7933B4D680F8073DD3DB5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				34DE2B1FD84A5DCE67E08FE0 /* LevelUpTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		ADE7BCB994C3C22D63E84969 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7AC96A606026FD88E8595F2E /* LevelUpUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		9E789451B5CFB06998210F44 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 53AD6394492882D80DD55FB5 /* LevelUp */;
+			targetProxy = 60D343D7AA501A37D5C68D91 /* PBXContainerItemProxy */;
+		};
+		C65CD0EB0E34AD2ADF7251B7 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 53AD6394492882D80DD55FB5 /* LevelUp */;
+			targetProxy = 9E932D4A07FD7F908AD1AAE3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0F459F8B50AAAF6E525701EB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.akshay.levelup.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LevelUp.app/LevelUp";
+			};
+			name = Debug;
+		};
+		1B8DFEEAC446C0ED4738E1D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		81637A540ED94B1BB6EB0D64 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = LevelUp;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "LevelUp records your voice during speaking practice. Recordings stay on this device.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "LevelUp transcribes your speaking practice to count words, pace and filler words. Transcription runs on-device when supported.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.akshay.levelup;
+				PRODUCT_NAME = LevelUp;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		9D57179912D9146543535093 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = LevelUp;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "LevelUp records your voice during speaking practice. Recordings stay on this device.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "LevelUp transcribes your speaking practice to count words, pace and filler words. Transcription runs on-device when supported.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.akshay.levelup;
+				PRODUCT_NAME = LevelUp;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A55FFD1C1B9124690074FF55 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.akshay.levelup.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LevelUp.app/LevelUp";
+			};
+			name = Release;
+		};
+		AE4C2D7050A9BBE3D46556B1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.akshay.levelup.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = LevelUp;
+			};
+			name = Release;
+		};
+		EE8D69506A8C5DB109F20E97 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		F6C0DF6CEED704FEA374CE3F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.akshay.levelup.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = LevelUp;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		7D6F5F3795A090169CD667FC /* Build configuration list for PBXNativeTarget "LevelUpTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0F459F8B50AAAF6E525701EB /* Debug */,
+				A55FFD1C1B9124690074FF55 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B57FF51F7F41B2882F93E494 /* Build configuration list for PBXProject "LevelUp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1B8DFEEAC446C0ED4738E1D8 /* Debug */,
+				EE8D69506A8C5DB109F20E97 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BE3EFF60F46C1BEFFD5850AB /* Build configuration list for PBXNativeTarget "LevelUpUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F6C0DF6CEED704FEA374CE3F /* Debug */,
+				AE4C2D7050A9BBE3D46556B1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DAF1B671AD21421C3E439DD5 /* Build configuration list for PBXNativeTarget "LevelUp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				81637A540ED94B1BB6EB0D64 /* Debug */,
+				9D57179912D9146543535093 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 47DC3218D0F0966D22249628 /* Project object */;
+}

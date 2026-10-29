@@ -1,0 +1,434 @@
+{
+ "E1": [
+  {
+   "status": "PASS",
+   "note": "first load, no storage: Today rendered, 0 console errors"
+  },
+  {
+   "status": "PASS",
+   "note": "storage blocked (getter throws): keep worked in memory (1/false), notice shown"
+  },
+  {
+   "status": "PASS",
+   "note": "corrupted JSON in storage: clean state, no errors"
+  },
+  {
+   "status": "PASS",
+   "note": "wrong-shape storage: rendered"
+  }
+ ],
+ "E2": [
+  {
+   "status": "PASS",
+   "note": "index.json missing: friendly error + retry"
+  },
+  {
+   "status": "PASS",
+   "note": "index.json empty days: No days yet"
+  },
+  {
+   "status": "PASS",
+   "note": "index.json invalid (not JSON): friendly error"
+  },
+  {
+   "status": "PASS",
+   "note": "index.json {} (no days key): No days yet"
+  },
+  {
+   "status": "PASS",
+   "note": "day file 404: error + Try again button"
+  },
+  {
+   "status": "PASS",
+   "note": "latest day 404 (index lists missing file): error state, no blank page"
+  },
+  {
+   "status": "PASS",
+   "note": "day with missing sections (empty tech/english): renders \"This day has no items\""
+  },
+  {
+   "status": "PASS",
+   "note": "day with only english / no tech key: rings 0/0,0/2"
+  },
+  {
+   "status": "PASS",
+   "note": "day file is garbage / null: non-blank: Could not load this  Cannot read propert"
+  }
+ ],
+ "E3": [
+  {
+   "status": "PASS",
+   "note": "every screen renders the real day without console errors: 20 screens ok"
+  }
+ ],
+ "E5": [
+  {
+   "status": "PASS",
+   "note": "deep reads: Read full article link has exact url + noopener: 3 deep reads checked"
+  },
+  {
+   "status": "PASS",
+   "note": "quick-core: every card face + expanded view has the link: 3 items ok"
+  },
+  {
+   "status": "PASS",
+   "note": "quick-more: every card face + expanded view has the link: 5 items ok"
+  },
+  {
+   "status": "PASS",
+   "note": "ai-core: every card face + expanded view has the link: 1 items ok"
+  },
+  {
+   "status": "PASS",
+   "note": "ai-more: every card face + expanded view has the link: 3 items ok"
+  },
+  {
+   "status": "PASS",
+   "note": "concept lesson has no original link (by design): none, as agreed"
+  }
+ ],
+ "E4": [
+  {
+   "status": "PASS",
+   "note": "HTML/script in title, source, tl;dr is escaped (reader): no execution, literal markup shown"
+  },
+  {
+   "status": "PASS",
+   "note": "huge text (60k chars) + 400-char unbroken title + minutes 999: rendered in 1067ms, no overflow"
+  },
+  {
+   "status": "PASS",
+   "note": "missing url and source: no crash, notice, no link: notice shown instead of link"
+  },
+  {
+   "status": "PASS",
+   "note": "cards with javascript: url, missing url, rtl, emoji, 40-min quick: no js: link; 40-min shows \"20+ min\""
+  },
+  {
+   "status": "PASS",
+   "note": "HTML in words, grammar, speaking, writing, concept: 5 screens clean"
+  }
+ ],
+ "E6": [
+  {
+   "status": "PASS",
+   "note": "keep (key), skip (button), undo, keep (swipe drag), counts and Saved list: keep key/swipe, skip button/swipe, undo ok; Saved shows the 2 kept"
+  },
+  {
+   "status": "PASS",
+   "note": "skipped tray + Bring back; ring counts exclude skipped: tech ring 2/6 with 2 kept 1 skipped; bring back works"
+  },
+  {
+   "status": "PASS",
+   "note": "Remove from Saved returns to new and card returns: 1 row left"
+  },
+  {
+   "status": "PASS",
+   "note": "reader Mark as done / Mark as unread clears scroll: done -> unread ok"
+  },
+  {
+   "status": "PASS",
+   "note": "expanded card: Mark as unread: sheet closed"
+  }
+ ],
+ "E7": [
+  {
+   "status": "PASS",
+   "note": "none done: rings 0/6 and 0/7, no streak: ok"
+  },
+  {
+   "status": "PASS",
+   "note": "real day-1 core = 13 items; 70% needs 10: 9 fail, 10 pass (ceil(.7*13)=10)"
+  },
+  {
+   "status": "PASS",
+   "note": "skipped do not count; skipping does not block: rings 6/6 4/7, streak 1"
+  },
+  {
+   "status": "PASS",
+   "note": "only skipped (10 skipped) = no streak: ok"
+  },
+  {
+   "status": "PASS",
+   "note": "all done: rings full + \"Core complete\" + streak: ok"
+  },
+  {
+   "status": "PASS",
+   "note": "synthetic 10-core day: 7 passes, 6 fails: exactly 7/10 passes, 6/10 fails, withdrawing works"
+  }
+ ],
+ "E8": [
+  {
+   "status": "PASS",
+   "note": "missed day breaks the streak; catch-up completion does not fake it: streak 1 -> 0 -> 1 -> 1 after catch-up (not 3)"
+  },
+  {
+   "status": "PASS",
+   "note": "midnight rollover and later un-done of a past day: rollover 1 -> 2; past reset ignored"
+  },
+  {
+   "status": "PASS",
+   "note": "Date skew: late finish (after midnight) of yesterday is not on time: documented rule: a day counts only if its threshold is reached on that calendar day"
+  }
+ ],
+ "E9": [
+  {
+   "status": "PASS",
+   "note": "catch-up window 0: 0 day groups"
+  },
+  {
+   "status": "PASS",
+   "note": "catch-up window 1: 1 day groups"
+  },
+  {
+   "status": "PASS",
+   "note": "catch-up window 3: 3 day groups"
+  },
+  {
+   "status": "PASS",
+   "note": "catch-up window 7: 7 day groups"
+  },
+  {
+   "status": "PASS",
+   "note": "finishing a catch-up day makes it disappear: now Tuesday, Oct 27 | Monday, Oct 26"
+  },
+  {
+   "status": "PASS",
+   "note": "skipped items stay out of catch-up: ok"
+  },
+  {
+   "status": "PASS",
+   "note": "Settings has an Off (0) option: ok"
+  }
+ ],
+ "E10": [
+  {
+   "status": "PASS",
+   "note": "1 day: strip 1, calendar 1"
+  },
+  {
+   "status": "PASS",
+   "note": "30 consecutive days: Oct 29 links, Sep 1, list 30; strip capped at 21 (older via Archive)"
+  },
+  {
+   "status": "PASS",
+   "note": "gap in dates: ok"
+  }
+ ],
+ "E11": [
+  {
+   "status": "PASS",
+   "note": "flip + Again/Good/Easy sequences give SM-2 values: Good->1d, Again->10min lapses 1 ease 2.3, Easy->3d ease 2.65"
+  },
+  {
+   "status": "PASS",
+   "note": "Again re-queues in-session; session completes; items marked done: 5 words done, again-card returned"
+  },
+  {
+   "status": "PASS",
+   "note": "review across days: due words, Good twice -> 6d: reps2: good=6d, easy=8d"
+  },
+  {
+   "status": "PASS",
+   "note": "keyboard: Space flips, 1/2/3 grade: ok"
+  },
+  {
+   "status": "PASS",
+   "note": "Words tab: Review due count, saved list, search: Words |  | 1 saved | "
+  }
+ ],
+ "E12": [
+  {
+   "status": "PASS",
+   "note": "single word, non-ASCII, punctuation trimmed, phrase: café, load balancer, metastable, naïve"
+  },
+  {
+   "status": "PASS",
+   "note": "duplicate saved once; case-insensitive: still 4 entries"
+  },
+  {
+   "status": "PASS",
+   "note": "long selection (>3 words) offers no save: hidden"
+  },
+  {
+   "status": "PASS",
+   "note": "saved words appear in Words tab and review queue as due: Review due (4)"
+  }
+ ],
+ "E13": [
+  {
+   "status": "PASS",
+   "note": "lenient checking: case, spaces, punctuation, contractions, two blanks, fix-the-sentence: all lenient cases behave"
+  },
+  {
+   "status": "PASS",
+   "note": "completing every exercise marks the lesson done: done after 6/6 attempts"
+  }
+ ],
+ "E14": [
+  {
+   "status": "PASS",
+   "note": "analysis function: fillers, wpm, empty, only fillers: only-fillers=4/5, mixed fillers=5, short -> n/a"
+  },
+  {
+   "status": "PASS",
+   "note": "mic denied: graceful message: message shown, no crash"
+  },
+  {
+   "status": "PASS",
+   "note": "no SpeechRecognition + fake mic: record, playback, manual transcript analysis: recording+player ok; manual analysis highlights 5 fillers"
+  },
+  {
+   "status": "PASS",
+   "note": "orb reacts to voice level while recording (fake mic tone): max --lvl=0.379"
+  },
+  {
+   "status": "PASS",
+   "note": "fake recognition: live transcript, filler highlights, wpm over 60s: 1:01 Duration / 11 Words / 11 wpm Pace On the slow side / 5 Filler words um ×1, like ×1, you know ×1, basically ×1, uh ×1"
+  },
+  {
+   "status": "PASS",
+   "note": "empty recording (immediate stop) and very long (1h) recording: short + 60:00 durations render"
+  },
+  {
+   "status": "PASS",
+   "note": "writing: save entry, listed, copy, delete: ok"
+  }
+ ],
+ "E15": [
+  {
+   "status": "PASS",
+   "note": "no weeklies: kind empty state: ok"
+  },
+  {
+   "status": "PASS",
+   "note": "real shape: list + sheet + quiz reveal + original links: all 7 sections, links, reveal"
+  },
+  {
+   "status": "PASS",
+   "note": "missing sections / null / odd values: partial render"
+  },
+  {
+   "status": "PASS",
+   "note": "weekly file 404 / invalid JSON: friendly errors"
+  }
+ ],
+ "E16": [
+  {
+   "status": "PASS",
+   "note": "export then erase then import round-trips: kept item, word, note, writing restored; toast: Progress imported and merged"
+  },
+  {
+   "status": "PASS",
+   "note": "old format (v1) export imports: migrated"
+  },
+  {
+   "status": "PASS",
+   "note": "wrong file, invalid JSON, empty file rejected with message: messages: Import failed: This file is not a LevelUp export."
+  }
+ ],
+ "E17": [
+  {
+   "status": "PASS",
+   "note": "erase all uses in-app dialog; cancel keeps; confirm leaves only a clean levelup:v1: keys=levelup:v1"
+  }
+ ],
+ "E18": [
+  {
+   "status": "PASS",
+   "note": "theme light/dark/system + persistence: dark #0a0d19 / light #eceffa; persisted"
+  },
+  {
+   "status": "PASS",
+   "note": "text size and serif: prose 18.9px -> 24.57px, serif applied, persisted"
+  },
+  {
+   "status": "PASS",
+   "note": "reduce motion + reduce transparency (override and OS emulation): override + OS motion ok; glass backdrop-filter=blur(0px) saturate(1.6)"
+  },
+  {
+   "status": "PASS",
+   "note": "OS prefers-reduced-transparency emulation: honoured"
+  }
+ ],
+ "E19": [
+  {
+   "status": "PASS",
+   "note": "viewport 360: no horizontal scroll, nav usable, 44px targets: 12 screens, nav tab bar ok"
+  },
+  {
+   "status": "PASS",
+   "note": "viewport 390: no horizontal scroll, nav usable, 44px targets: 12 screens, nav tab bar ok"
+  },
+  {
+   "status": "PASS",
+   "note": "viewport 768: no horizontal scroll, nav usable, 44px targets: 12 screens, nav tab bar ok"
+  },
+  {
+   "status": "PASS",
+   "note": "viewport 1280: no horizontal scroll, nav usable, 44px targets: 12 screens, nav sidebar ok"
+  },
+  {
+   "status": "PASS",
+   "note": "dark theme visual pass (phone + desktop): screenshots taken"
+  }
+ ],
+ "E20": [
+  {
+   "status": "PASS",
+   "note": "Today: tab order, visible focus ring, Enter follows a row: Wednesday, October 28 > Thursday, October 29 > Quick 15 > Standard 45 > Deep 2h > Tech: 0 of 6 core items fini > English: 0 of 7 core items f > StartDeep read · 12 min > Deep read: Meta Andromeda: P > Quick reads: Quick "
+  },
+  {
+   "status": "PASS",
+   "note": "cards: keyboard keep/skip/undo/expand/Escape, focus returns: Enter expands, Tab trapped, Esc closes, arrows keep/skip, z undoes"
+  },
+  {
+   "status": "PASS",
+   "note": "words: Space flip + 1/2/3 (see E11); recall questions reachable by keyboard: ok"
+  },
+  {
+   "status": "PASS",
+   "note": "segmented controls keyboard activatable: ok"
+  }
+ ],
+ "E21": [
+  {
+   "status": "PASS",
+   "note": "long/RTL/emoji content holds layout at 360 and 1280: no overflow on 10 page/viewport combos"
+  },
+  {
+   "status": "PASS",
+   "note": "RTL text direction renders readable (screenshot): unicode-bidi=isolate"
+  }
+ ],
+ "E22": [
+  {
+   "status": "PASS",
+   "note": "two tabs: both writes survive (storage event adoption): both items present in storage and in tab A"
+  }
+ ],
+ "G2": [
+  {
+   "status": "PASS",
+   "note": "day with new fields (level, whySelected, minutes) vs day 1 without: new fields shown; absent fields fine"
+  }
+ ],
+ "G4": [
+  {
+   "status": "PASS",
+   "note": "schema 2 with extra unknown fields degrades gracefully: renders, ignores unknown fields"
+  }
+ ],
+ "G3": [
+  {
+   "status": "PASS",
+   "note": "wrong content type + caching headers still parse: JSON served as text/plain with long max-age: renders"
+  }
+ ],
+ "G1": [
+  {
+   "status": "PASS",
+   "note": "real pipeline day (tests/fixtures/real-day.json) renders everywhere: all sections render for 2026-10-31"
+  }
+ ]
+}
