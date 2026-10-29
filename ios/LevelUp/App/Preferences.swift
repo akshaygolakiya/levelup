@@ -14,6 +14,9 @@ enum ThemeChoice: String, CaseIterable, Identifiable {
 }
 
 /// User settings, persisted in UserDefaults. Empty baseURL means "use the bundled copy".
+/// A fresh install reads from the live site; the test harness (launch arguments) starts empty so tests stay offline.
+let liveSiteURL = "https://levelup.golakiyaakshay17.workers.dev"
+
 @Observable @MainActor
 final class Preferences {
     private let defaults: UserDefaults
@@ -30,7 +33,7 @@ final class Preferences {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        baseURL = defaults.string(forKey: "baseURL") ?? ""
+        baseURL = defaults.string(forKey: "baseURL") ?? (LaunchConfig.current.isActive ? "" : liveSiteURL)
         theme = ThemeChoice(rawValue: defaults.string(forKey: "theme") ?? "") ?? .system
         textStep = defaults.object(forKey: "textStep") as? Int ?? 0
         serifReading = defaults.bool(forKey: "serif")

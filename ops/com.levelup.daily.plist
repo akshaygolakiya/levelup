@@ -6,9 +6,9 @@
   <key>ProgramArguments</key>
   <array>
     <string>/bin/bash</string>
-    <string>/Users/akshaygolakiya/Documents/native-apps/levelup/ops/run-daily.sh</string>
+    <string>/Users/akshaygolakiya/levelup-app/ops/run-daily.sh</string>
   </array>
-  <key>WorkingDirectory</key><string>/Users/akshaygolakiya/Documents/native-apps/levelup</string>
+  <key>WorkingDirectory</key><string>/Users/akshaygolakiya/levelup-app</string>
   <key>RunAtLoad</key><true/>
   <key>StartCalendarInterval</key>
   <dict>
@@ -20,7 +20,7 @@
     <key>HOME</key><string>/Users/akshaygolakiya</string>
     <key>LEVELUP_CONCURRENCY</key><string>3</string>
   </dict>
-  <key>StandardOutPath</key><string>/Users/akshaygolakiya/Documents/native-apps/levelup/pipeline/logs/launchd.out.log</string>
-  <key>StandardErrorPath</key><string>/Users/akshaygolakiya/Documents/native-apps/levelup/pipeline/logs/launchd.err.log</string>
+  <key>StandardOutPath</key><string>/Users/akshaygolakiya/levelup-app/pipeline/logs/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>/Users/akshaygolakiya/levelup-app/pipeline/logs/launchd.err.log</string>
 </dict>
 </plist>

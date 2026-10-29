@@ -19,7 +19,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    TextField("https://your-site.pages.dev", text: $prefs.baseURL)
+                    TextField("https://levelup.golakiyaakshay17.workers.dev", text: $prefs.baseURL)
                         .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
                         .frame(minHeight: DT.tapMin)
                     Button(applying ? "Loading…" : "Apply and refresh") {

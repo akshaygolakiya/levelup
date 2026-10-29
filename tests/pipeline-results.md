@@ -3,7 +3,7 @@
 Rerun everything offline with one command (about 35 s, no Claude calls, no network, no allowance):
 
 ```
-/Users/akshaygolakiya/Documents/native-apps/levelup/tests/pipeline/run-all.sh
+/Users/akshaygolakiya/levelup-app/tests/pipeline/run-all.sh
 ```
 
 Last run: **112 tests, 112 pass, 0 fail.** Plus 2 real Claude calls (B13/B14, `tests/pipeline/helpers/injection-real.mjs`, run by hand) and one full real run (G5).

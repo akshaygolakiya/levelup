@@ -94,7 +94,7 @@
   },
   {
    "status": "PASS",
-   "note": "huge text (60k chars) + 400-char unbroken title + minutes 999: rendered in 1067ms, no overflow"
+   "note": "huge text (60k chars) + 400-char unbroken title + minutes 999: rendered in 1072ms, no overflow"
   },
   {
    "status": "PASS",
@@ -280,7 +280,7 @@
   },
   {
    "status": "PASS",
-   "note": "orb reacts to voice level while recording (fake mic tone): max --lvl=0.379"
+   "note": "orb reacts to voice level while recording (fake mic tone): max --lvl=0.231"
   },
   {
    "status": "PASS",

@@ -3,7 +3,7 @@ import XCTest
 /// End-to-end checks driven by launch arguments (see LaunchConfig in the app).
 /// Env (via TEST_RUNNER_ prefix): LU_TAG screenshot prefix, LU_ARGS extra launch args, LU_LANDSCAPE=1.
 final class LevelUpUITests: XCTestCase {
-    let shotDir = "/Users/akshaygolakiya/Documents/native-apps/levelup/tests/screens/ios"
+    let shotDir = "/Users/akshaygolakiya/levelup-app/tests/screens/ios"
     var app: XCUIApplication!
     var tag: String { ProcessInfo.processInfo.environment["LU_TAG"] ?? "run" }
 

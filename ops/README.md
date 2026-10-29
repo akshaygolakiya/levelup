@@ -13,7 +13,7 @@ Already done in the dashboard: Workers & Pages -> levelup, Builds connected to a
 ## Install
 
 ```
-cp /Users/akshaygolakiya/Documents/native-apps/levelup/ops/com.levelup.daily.plist ~/Library/LaunchAgents/
+cp /Users/akshaygolakiya/levelup-app/ops/com.levelup.daily.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.levelup.daily.plist
 ```
 
