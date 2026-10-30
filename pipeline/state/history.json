@@ -14,7 +14,26 @@
     "497306ca80",
     "2462892d26",
     "ccdcae5827",
-    "f76880ab8f"
+    "f76880ab8f",
+    "20a2590281",
+    "0f9343e573",
+    "ece579d46c",
+    "2a8881dbb8",
+    "c1afa36953",
+    "68f7c17af7",
+    "2365cd15a3",
+    "efb9381f0c",
+    "72c27fdbb2",
+    "66b01ef311",
+    "be270d1902",
+    "a86185eb36",
+    "c6d2590434",
+    "7001c24226",
+    "2b2f487795",
+    "b44fa46ddb",
+    "2862aed6ff",
+    "3bd3315ede",
+    "a67468a060"
   ],
   "words": [
     "nuance",
@@ -34,6 +53,196 @@
     "quantifiable",
     "bottleneck",
     "robust",
-    "caveat"
+    "caveat",
+    "heads-up",
+    "upfront",
+    "sort out",
+    "rule out",
+    "sign off",
+    "wrap up",
+    "loop in",
+    "on track",
+    "blocker",
+    "hands-on",
+    "handoff",
+    "workaround",
+    "fallback",
+    "substantiate",
+    "consolidate",
+    "contingency",
+    "deprecate",
+    "underpin"
+  ],
+  "seenTitles": [
+    {
+      "id": "41bdeeb24d",
+      "title": "Meta Andromeda: Powering the Next Generation of Ads Retrieval Through Model-System Co-Design",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "e32b804ef0",
+      "title": "PrivacyLib: Privacy Controls at the Data Access Boundary",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "30ad8d823d",
+      "title": "Shard design doesn't start from your tables",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "419e476cce",
+      "title": "Animations for System Builders: Metastability and Lost Writes",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "c54697c125",
+      "title": "On Git Refs",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "b19d44d932",
+      "title": "Our Response To The eMudhra Key Disclosure Incident",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "1332586c84",
+      "title": "What took the Internet offline in Q3 2026",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "4a09bf8b95",
+      "title": "Benchmark In Milliseconds",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "e7bdc47077",
+      "title": "The Future of CSS ✨",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "0db7e30919",
+      "title": "GitOps Deep Dive: How ArgoCD Works",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "91f7927c2c",
+      "title": "Python's experimental JIT to be removed",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "497306ca80",
+      "title": "How Shopify turns open models into task experts",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "2462892d26",
+      "title": "Scaling Laws, Carefully",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "ccdcae5827",
+      "title": "How Uber Built A Gateway For AI Agents To Access Tools",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "f76880ab8f",
+      "title": "How To Use Decision Models for Evals",
+      "date": "2026-10-29"
+    },
+    {
+      "id": "20a2590281",
+      "title": "The bridge to agent-scale Git infrastructure",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "0f9343e573",
+      "title": "Designing a planned switchover for minimum disruption",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "ece579d46c",
+      "title": "How BMW Group accelerated connected vehicle workloads on AWS Graviton",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "2a8881dbb8",
+      "title": "Cross-store product clustering across millions of stores",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "c1afa36953",
+      "title": "Widespread PHP Flaw May Cause Many Site Outages Today",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "68f7c17af7",
+      "title": "Forging a Microsoft Edge Full Chain with Logic Bugs Only",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "2365cd15a3",
+      "title": "Why is this fingerprinting script creating bioweapons?",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "efb9381f0c",
+      "title": "New to the web platform in September",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "72c27fdbb2",
+      "title": "H.264 Is Magic (2016)",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "66b01ef311",
+      "title": "Interactive refactoring in gopls",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "be270d1902",
+      "title": "Finding Bugs",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "a86185eb36",
+      "title": "Data Movement Strategies In System Design",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "c6d2590434",
+      "title": "GitLab Security Incident: Attempted Exploitation of CVE-2026-97229",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "7001c24226",
+      "title": "A new faster algorithm to compute 64-bit signed floor division",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "2b2f487795",
+      "title": "Catching Bugs Before They Land: JiTTesting’s Human-on-the-Loop Approach at Full Scale",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "b44fa46ddb",
+      "title": "Harness Engineering for Self-Improvement",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "2862aed6ff",
+      "title": "How Apple Fits an LLM on Your iPhone",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "3bd3315ede",
+      "title": "AI SRE: what is it, how could it change on-call – and does it work?",
+      "date": "2026-10-30"
+    },
+    {
+      "id": "a67468a060",
+      "title": "TLA-Verus: LLM agents prove temporal properties of TLA+ specs",
+      "date": "2026-10-30"
+    }
   ]
 }
