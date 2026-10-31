@@ -33,7 +33,26 @@
     "b44fa46ddb",
     "2862aed6ff",
     "3bd3315ede",
-    "a67468a060"
+    "a67468a060",
+    "7927d7eea9",
+    "05b9a82119",
+    "bb9ecce72b",
+    "8475093c4b",
+    "1f9db07244",
+    "5c61ddd850",
+    "51ed0d8f55",
+    "b7d248bc90",
+    "20bfb0269b",
+    "bf5aaab635",
+    "e34a839c61",
+    "4ef4ae17d6",
+    "da85974fc5",
+    "2ac71e9115",
+    "c91316c9b1",
+    "efc2d0980d",
+    "77544766b8",
+    "feb4caa835",
+    "8ccea7e89b"
   ],
   "words": [
     "nuance",
@@ -71,7 +90,25 @@
     "consolidate",
     "contingency",
     "deprecate",
-    "underpin"
+    "underpin",
+    "flag",
+    "ballpark",
+    "tweak",
+    "hiccup",
+    "straightforward",
+    "ramp up",
+    "tackle",
+    "outage",
+    "fall through",
+    "on the fence",
+    "roll out",
+    "drive",
+    "sync",
+    "stakeholder",
+    "de-risk",
+    "iterate",
+    "latency",
+    "incremental"
   ],
   "seenTitles": [
     {
@@ -243,6 +280,101 @@
       "id": "a67468a060",
       "title": "TLA-Verus: LLM agents prove temporal properties of TLA+ specs",
       "date": "2026-10-30"
+    },
+    {
+      "id": "7927d7eea9",
+      "title": "When the Kubernetes API went silent: A three-layer networking mystery",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "05b9a82119",
+      "title": "SBD: We Have a Filesystem at Home",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "bb9ecce72b",
+      "title": "Azure's Weakest Link – Five Full Cross-Tenant Compromises",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "8475093c4b",
+      "title": "Making Failure Diagnosis Reliable with Pensive AI",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "1f9db07244",
+      "title": "Better HTTP/1 connection reuse",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "5c61ddd850",
+      "title": "Static Allocation, Constant Work",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "51ed0d8f55",
+      "title": "What was the turning point for Postgres?",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "b7d248bc90",
+      "title": "Stripe on Stripe: What we learned moving $1B in vendor payments to Global Payouts",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "20bfb0269b",
+      "title": "Defending the patch gap against automated attackers",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "bf5aaab635",
+      "title": "Backdoor in Claude Code for VS Code extension on the Cursor Marketplace",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "e34a839c61",
+      "title": "Northflank Breached",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "4ef4ae17d6",
+      "title": "Speeding up code review with `small-change`",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "da85974fc5",
+      "title": "How hard is it to check for whitespace?",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "2ac71e9115",
+      "title": "Breaking the open web won't stop the bad bots",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "c91316c9b1",
+      "title": "How we’re training a Figma-fluent editing model",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "efc2d0980d",
+      "title": "Small Decisions: Engineering a Leading Model",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "77544766b8",
+      "title": "Claude’s new auto eval tool",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "feb4caa835",
+      "title": "The sleep framework: A new way for LLMs to retain knowledge in continual learning",
+      "date": "2026-10-31"
+    },
+    {
+      "id": "8ccea7e89b",
+      "title": "We're releasing the weights of Mistral Large 4",
+      "date": "2026-10-31"
     }
   ]
 }

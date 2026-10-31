@@ -1,0 +1,1123 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "generatedAt": "2026-10-31T00:34:07.050Z",
+  "promptsVersion": "1.0.0",
+  "tech": {
+    "deepReads": [
+      {
+        "id": "7927d7eea9",
+        "tldr": "Intermittent i/o timeouts from GKE pods to the Kubernetes API server blocked about 800 developers for weeks and came from three separate bugs in three layers of the stack. A change to USPS, the packet switch behind Private Service Connect, dropped RFC 5961 challenge ACKs, packet reordering contributed to control-plane sockets lingering in FIN_WAIT_2, and the final fix was a Linux kernel patch.",
+        "beforeYouRead": [
+          {
+            "term": "5-tuple",
+            "explain": "The five values that identify a TCP connection: protocol, source IP, source port, destination IP and destination port. If a new connection reuses the same 5-tuple as an old one, the server can confuse the two."
+          },
+          {
+            "term": "FIN_WAIT_1 / FIN_WAIT_2",
+            "explain": "TCP close states on the side that sends FIN first. FIN_WAIT_1 means it has sent its FIN. FIN_WAIT_2 means its FIN has been ACKed and it is waiting for the peer's FIN."
+          },
+          {
+            "term": "Challenge ACK (RFC 5961)",
+            "explain": "When a SYN arrives that matches existing or recently closed connection state, the server replies with an ACK carrying the old connection's last known sequence number instead of a SYN-ACK. A legitimate client answers with RST, which clears the stale state so the next SYN succeeds."
+          },
+          {
+            "term": "Private Service Connect (PSC)",
+            "explain": "Google Cloud's mechanism for exposing the GKE control plane privately through a virtual IP. Traffic is NAT'd, passed through an internal passthrough Network Load Balancer, and has a proxy protocol header added so the kube-apiserver can see the real client IP."
+          },
+          {
+            "term": "conntrack",
+            "explain": "The operating system's connection tracking table. One early theory was that too many half-open connections were filling it on the control plane nodes, but it was only about half full."
+          },
+          {
+            "term": "tcp_fin_timeout",
+            "explain": "A Linux kernel parameter that sets how long a socket in FIN_WAIT_2 waits before being forcibly closed."
+          }
+        ],
+        "keyIdeas": [
+          "Symptom: pods, system components and external clients (developer laptops, GitHub Actions runners) all got 'dial tcp 1.2.3.4:443: i/o timeout' to the kube-apiserver VIP. It hit five clusters in europe-west, blocked about 800 developers and froze production releases.",
+          "Suspects ruled out in order: a kopf-based custom operator (errors started 8 days before it was deployed and continued after shutdown), External Secrets Operator, security agents, conntrack exhaustion (table at about 50% of a 1.3M default maximum) and control-plane load (KCP VM scaled up, apiserver latency healthy).",
+          "The request path is Pod → Worker Node → PSC NAT+Proxy → ILB → KCP VM NIC → Envoy → kube-apiserver. Simultaneous packet captures at the KCP VM NIC (PIGv) and inside the kube-apiserver container showed SYNs arriving but being answered with an ACK from a previous connection on the same source port. Wireshark labelled these 'TCP Port numbers reused'.",
+          "An Andromeda counter, 'Proxy protocol drop: invalid ACK packet', had been flat for months and then spiked to several drops per second in February 2026. The spike matched a USPS rollout that fixed a separate security issue in proxy protocol handling by dropping ACKs that arrived before the SYN-ACK, which is exactly what challenge ACKs look like.",
+          "PSC's NAT shares one endpoint across many pods, so many pods can end up on the same post-NAT source port. That makes 5-tuple collisions, and therefore challenge ACKs, far more frequent than with direct connections.",
+          "Rolling back the USPS change in February brought the drop counter back toward baseline, and by early March 2026 all clusters had recovered. The team treated this as a band-aid, because it did not explain why the KCP VM held sockets in FIN_WAIT_2 for more than two minutes.",
+          "Bug #1: PSC miss-thread processing sends a new flow's packet through a slow path (proxy header plus NAT setup) while later packets take a fast path. This reordered close packets between the host NIC and the PIGv, and the server kernel ignored the client's late FIN. Bug #2 involves Envoy's half-close and tcp_fin_timeout, but the excerpt cuts off before explaining it."
+        ],
+        "seniorLens": "The central lesson is hidden dependency: correct TCP behaviour relied on challenge ACKs passing through a middlebox, and a security fix that classified them as invalid broke it silently. Middleboxes that inspect TCP state need to account for RFC 5961 behaviour, or they risk dropping legitimate traffic. NAT that funnels many clients onto shared source ports turns rare edge cases (port reuse while the server still remembers the old connection) into common ones. The debugging method is worth copying: capture at several points at once (host NIC, virtual NIC, inside the container) and compare them, because the reordering only became visible by comparing the host NIC with the PIGv. A parallel thread correlating fabric-level drop counters with the rollout timeline identified the trigger. The scope (all workload types, external clients, multiple clusters) already pointed at the shared network path while the obvious suspects were still being cleared, which took until about day 20. Note that the rollback restored behaviour the system 'accidentally depended on' and was not a root-cause fix. The excerpt does not cover the details of bugs #2 and #3 or the kernel patch itself, so the full causal chain is not available here.",
+        "whyItMatters": "Managed control-plane paths contain NAT, proxies and load balancers that can each change TCP behaviour, and a fix in one layer can expose latent dependencies in others. Intermittent timeouts to a shared endpoint across every client type point at the path, not the workloads.",
+        "forYou": "When timeouts affect every client type, stop blaming individual apps and capture packets at several points at the same time. Learn the TCP state machine (FIN_WAIT_1/2, RST, challenge ACKs) well enough to read a Wireshark stream. If you build proxies or NAT layers, test port reuse and out-of-order close sequences. Check infrastructure rollout timelines against when errors began.",
+        "questions": [
+          "What did the KCP VM send back in response to a new SYN on a reused source port, and why did the client never complete the handshake after the USPS change?",
+          "Why did Private Service Connect's NAT make 5-tuple collisions, and therefore challenge ACKs, much more common than with direct connections?"
+        ],
+        "tags": [
+          "kubernetes",
+          "tcp",
+          "networking",
+          "debugging"
+        ],
+        "verifyNotes": "tldr: named USPS as the packet switch behind PSC; changed 'reordering left sockets stuck' to 'contributed to' (bug #2 is also involved). Challenge ACK: 'last known sequence number of the old connection'. conntrack: removed unsupported claims about NAT/firewalls and failure behaviour, tied to the source's theory. keyIdeas: added that errors continued after the operator was shut down, the security issue was in proxy protocol handling, the rollback happened in February, and 'new flow' instead of 'first packet'. seniorLens: softened the absolute middlebox claim, removed the unsupported 'faster than workload elimination' comparison and the '20 days on application-layer suspects' framing. forYou: removed TIME_WAIT, which the source does not discuss.",
+        "kind": "deep",
+        "title": "When the Kubernetes API went silent: A three-layer networking mystery",
+        "source": "Google Cloud SRE/DevOps",
+        "url": "https://cloud.google.com/blog/products/networking/the-three-layer-gke-network-mystery/",
+        "track": "cloud",
+        "publishedAt": "2026-10-30T16:00:00.000Z",
+        "minutes": 20,
+        "whySelected": "A real Kubernetes support case that traces a silent API server through three networking layers, which teaches systematic debugging of cluster networking."
+      },
+      {
+        "id": "05b9a82119",
+        "tldr": "Fly.io replaced Sprites' heavily modified JuiceFS storage, which had to keep chunks, a metadata database and a checkpoint database in agreement, with the Sprites Block Device (SBD). SBD presents an object-storage bucket to the Linux kernel as a block device over NBD, which the Sprite formats as ext4, and it keeps metadata in the same bucket.",
+        "beforeYouRead": [
+          {
+            "term": "Object storage",
+            "explain": "Bucket storage where you read and write whole objects. You cannot change part of an object in place, so changing one byte means replacing the whole object."
+          },
+          {
+            "term": "Block device / NBD",
+            "explain": "A block device is a disk-like interface that reads and writes fixed-size blocks, and a filesystem such as ext4 sits on top of it. NBD (Network Block Device) lets a user-space program supply those blocks to the Linux kernel."
+          },
+          {
+            "term": "Loop device",
+            "explain": "A Linux mechanism that makes a regular file, such as a disk image, appear as a block device so it can be mounted."
+          },
+          {
+            "term": "Writeback mode",
+            "explain": "As JuiceFS used it, recording a chunk in metadata first and uploading the bytes afterwards. It is faster, but a crash between the two steps leaves metadata pointing at a chunk that does not exist."
+          },
+          {
+            "term": "Copy-on-write clone",
+            "explain": "A copy that shares the original's underlying data instead of duplicating it. Because clones share chunks, a missing or bad chunk affects every clone that shares it."
+          },
+          {
+            "term": "Litestream",
+            "explain": "A tool used here to keep a SQLite database durable by replicating it to object storage."
+          }
+        ],
+        "keyIdeas": [
+          "The root of a Sprite's disk has always been object storage, not local NVMe. That is what lets a Sprite sleep and wake on a different server with its files intact.",
+          "v1 used a modified JuiceFS with a rewritten SQLite metadata backend made durable with Litestream. It stored exactly one file: a 100 GB disk image mounted on a loop device with ext4 inside.",
+          "A disk was chunks, plus a metadata database mapping chunks to images, plus checkpoints.db mapping checkpoints to images. Each was made durable separately, so each could be right while another was wrong.",
+          "Failure mode: in writeback mode, JuiceFS recorded a chunk in metadata before uploading it. A kill between those two steps left metadata pointing at a missing chunk, so reads got a 404 and ext4 hit a failed directory-block checksum and went read-only. Neither moving the Sprite nor restoring a checkpoint helped, because checkpoint clones shared the same missing chunk.",
+          "A harness cycled 400 JuiceFS Sprites through write, checkpoint, sleep, wake and restore for about 5,000 cycles, verifying every byte. A nonzero number permanently lost the ability to checkpoint.",
+          "SBD runs as a daemon, 'sbd serve', inside the Sprite. It answers kernel block I/O from a local cache, uploads dirty blocks in the background, flushes on demand, and keeps metadata in the bucket alongside the blocks.",
+          "An SBD checkpoint is a versioned block snapshot of the whole volume recorded in SBD's own checkpoint catalog. Restore unmounts, rewinds the volume in place and remounts, at about the cost of a restart. SBD verifies every block it reads back against what it wrote, and if SBD dies the whole Sprite restarts. Fly.io reports SBD as orders of magnitude more reliable."
+        ],
+        "seniorLens": "The real problem was several independently durable stores with no atomic commit across them. With chunks, a metadata DB and a checkpoint DB, every crash point between their updates is a potential inconsistency, and writeback mode guaranteed such windows existed. The fix reduces the number of sources of truth to one, which removes a whole class of bugs instead of patching instances of it with reconciliation and repair tooling. A second lesson: copy-on-write checkpoints are not backups, because shared chunks mean shared gaps. Choosing fail-stop (verify every block, restart on daemon death) over carrying on with an untrusted disk is a sound choice for agent sandboxes. The article leaves several things open. SBD still caches dirty blocks locally and uploads them in the background, which implies unflushed data can still be lost in a crash. The article does not say how ordering between metadata and block uploads is guaranteed within the bucket. 'Orders of magnitude more reliable' comes without failure counts. It gives no latency, throughput or cost figures for ext4 over NBD over object storage, and no cost for full-volume snapshots. A byte-verifying test harness that drives thousands of full lifecycle cycles is the most transferable practice in the piece.",
+        "whyItMatters": "It shows how storage built from several separately durable pieces fails under crashes, and why collapsing to a single source of truth with fail-stop verification beats ever-cleverer repair tooling.",
+        "forYou": "In your own systems, look for any operation that writes to two stores, such as a DB plus S3 or metadata plus blobs. Ask what happens if the process dies between the writes, and prefer designs with one source of truth. Treat snapshots and clones that share underlying data as not being independent backups. Build an automated harness that repeatedly drives the full lifecycle and verifies data byte for byte.",
+        "questions": [
+          "In writeback mode, what sequence of steps let JuiceFS end up with metadata pointing at a missing chunk, and why didn't restoring a checkpoint fix it?",
+          "How does SBD present object storage to Linux, where does its metadata live, and what happens when the SBD daemon dies?"
+        ],
+        "tags": [
+          "storage",
+          "filesystems",
+          "object-storage",
+          "reliability"
+        ],
+        "verifyNotes": "tldr: 'kept ... in sync' changed to 'had to keep ... in agreement' (they could fall out of sync); clarified that the Sprite formats the NBD device as ext4. Object storage: removed unsupported 'S3-style'. Writeback mode: replaced the generic 'acknowledging writes' definition with the source's metadata-before-upload description. Copy-on-write clone: removed the unsupported 'cheap to create' and 'shared corruption' claims and tied it to shared chunks. Litestream: limited to what the source says. keyIdeas: the 404 now follows from the missing chunk, and moving the Sprite also didn't help. seniorLens: framed the crash window as an implication, not a stated fact; changed 'chaos harness' to 'test harness'.",
+        "kind": "deep",
+        "title": "SBD: We Have a Filesystem at Home",
+        "source": "Fly.io Blog",
+        "url": "https://fly.io/blog/sprites-block-device/",
+        "track": "cloud",
+        "publishedAt": "2026-10-22T00:00:00.000Z",
+        "minutes": 8,
+        "whySelected": "Fly.io explains its infrastructure choices behind a block-storage and filesystem design, and the build-versus-buy trade-offs involved."
+      },
+      {
+        "id": "bb9ecce72b",
+        "tldr": "Azure Logic Apps API Connections route calls through a shared API Management instance, and requests from ARM to that instance have rights to every connection, so tricking it into using someone else's connection gives cross-tenant access to that connection's backend. The author found five critical elevation-of-privilege vulnerabilities this way, involving path traversal, undocumented endpoints, a RuntimeUrl override, validation that ran before path normalisation, and a fix that reopened an earlier hole, earning $200,000 in total.",
+        "beforeYouRead": [
+          {
+            "term": "Tenant / cross-tenant",
+            "explain": "In Azure, a tenant is an organisation's isolated identity and resource boundary. A cross-tenant compromise means one customer can reach another customer's resources."
+          },
+          {
+            "term": "API Connection",
+            "explain": "A stored, preconfigured credential (an OAuth token or an API key) that Logic Apps use to call a backend such as Key Vault, Azure SQL, Jira or Salesforce."
+          },
+          {
+            "term": "APIM and ARM",
+            "explain": "Azure API Management (APIM) is a gateway that proxies API calls. Azure Resource Manager (ARM) is the control-plane API at management.azure.com that brokers operations on Azure resources."
+          },
+          {
+            "term": "Path traversal",
+            "explain": "Using '..' segments, here URL-encoded as %2e%2e, to make a path resolve outside the directory or route the developer intended."
+          },
+          {
+            "term": "Managed identity",
+            "explain": "An Azure-managed identity attached to a resource. It can be granted access to other resources explicitly, so no stored secrets are needed."
+          }
+        ],
+        "keyIdeas": [
+          "Call flow: a Logic App calls a shared APIM instance. APIM checks the action against the connector's swagger (OpenAPI) definition, exchanges the input token or key for the backend token configured on the connection, then calls the backend with that token.",
+          "Microsoft's diagram omits that the ARM endpoints DynamicInvoke and /extensions/proxy/ query APIM directly. Requests from ARM to APIM have rights to all connections, so the author says the only real barrier is layers of input validation.",
+          "First exploit (described in part 2 of the series): a path traversal in DynamicInvoke ('path/%2e%2e/%2e%2e/.../apim/keyvault/<id>/secrets/victimsecret/value') read another tenant's Key Vault secret. In the author's assessment, the fix restricted allowed paths rather than addressing the underlying token issue.",
+          "SSHing into a Standard Logic App exposed code that showed four public functions where only DynamicInvoke was expected; the others were undocumented but reachable on the same path. DynamicList could be reached by renaming the URI segment, and its per-parameter '..' values enabled an arbitrary SQL query (for example an INSERT) on a victim's Azure SQL database. Microsoft then blocked all these endpoints.",
+          "Consumption Logic Apps (co-located with other workflows) create Version 1 connections with no managed-identity authorisation step. Standard Logic Apps (dedicated host) create Version 2 connections that authorise the app's managed identity. The author concluded that every Consumption app has implicit access to every V1 connection.",
+          "Pointing a workflow at a victim's connection directly fails because the runtime validates ownership. However, the workflow parameter host.api.RuntimeUrl overrides the connection's runtime URL, and any host ending in azure-apihub.net receives the Authorization header. The first fix required the runtime URL path to match the expected endpoint, but validation ran before path normalisation, so traversal bypassed it. When Microsoft fixed that traversal, the original RuntimeUrl path was no longer validated, which reopened the first attack.",
+          "Result: five critical elevation-of-privilege vulnerabilities, $200,000 in rewards, and a talk at Blue Hat Asia 2026. All were fixed within what the author calls a reasonable time after reporting."
+        ],
+        "seniorLens": "The root cause is architectural: a shared component can act with every customer's stored credentials and decides which one to use based on caller-supplied paths and parameters. Every fix described here patches inputs (path restrictions, endpoint blocking, URL matching) rather than binding authority to the caller, and each fix left neighbouring code paths open. That explains five findings from one root cause, and the author expects the blocked endpoints to be exploitable again if they are re-enabled. Validating a URL before normalising it is a parser-differential bug: the runtime and APIM saw different paths. Canonicalise first, then check, and check in the component that actually acts on the value. The regression, where fixing one bug removed an earlier check, suggests missing regression coverage for security fixes. Undocumented but reachable endpoints are still attack surface. Code present on customer-accessible hosts can leak internals, even if, as the author notes, it may not actually execute there. Blast radius depends on the stored credential: OAuth connections carry the token of the person who created the connection, and the author guesses that API keys are rarely scoped down, so least-privilege credentials on integrations are the defender's main control. The article does not cover detection, such as whether cross-tenant use was logged or visible to victims.",
+        "whyItMatters": "Integration platforms that broker stored credentials concentrate risk. One routing mistake in a shared proxy can expose any customer's Key Vault, database or connected SaaS account.",
+        "forYou": "When you build proxies, webhooks or connectors that hold credentials on behalf of users, authorise on the caller's identity and the exact target resource, not on paths. Normalise inputs before validating them, and enforce checks where the request is executed. Treat every handler on a route as attack surface, documented or not. Add regression tests for each security fix. For your own integrations, scope API keys and OAuth grants to the minimum the connection needs.",
+        "questions": [
+          "Why did validating host.api.RuntimeUrl with an exact-match check still fail to stop the attack, and what ordering would have prevented it?",
+          "What difference between Consumption and Standard Logic App connection creation implied that Consumption apps had implicit access to every Version 1 API Connection?"
+        ],
+        "tags": [
+          "security",
+          "azure",
+          "path-traversal",
+          "cloud"
+        ],
+        "verifyNotes": "tldr: clarified that ARM-to-APIM requests hold rights to all connections, replaced 'bypasses' with 'critical elevation-of-privilege vulnerabilities', and added the regression that reopened an earlier attack. Key ideas: marked the DynamicInvoke traversal as from part 2 and the fix assessment as the author's view; corrected 'four undocumented functions next to DynamicInvoke' to four functions in total, of which the non-DynamicInvoke ones were undocumented; changed 'arbitrary SQL INSERT' to 'arbitrary SQL query (for example an INSERT)'; attributed the V1 implicit-access conclusion to the author; added the ownership-validation context; changed 'exact URL match' to 'path must match' to follow the source wording; changed 'bounties' to 'rewards'. Senior lens: changed 'holds credentials' to 'can act with'; removed 'full' from the OAuth token claim; marked the API-key scoping claim as the author's guess; softened 'no regression tests' to 'suggests missing regression coverage'; added the author's caveat that the code may not execute on the host.",
+        "kind": "deep",
+        "title": "Azure's Weakest Link – Five Full Cross-Tenant Compromises",
+        "source": "Hacker News",
+        "url": "https://www.binarysecurity.no/posts/2026/10/one-root-case",
+        "track": "general",
+        "publishedAt": "2026-10-30T10:06:15.000Z",
+        "minutes": 11,
+        "whySelected": "Five full cross-tenant compromises in Azure show how isolation boundaries in multi-tenant clouds fail in practice."
+      },
+      {
+        "id": "8475093c4b",
+        "tldr": "Netflix extended Pensive, its rule-based failure diagnosis system, with LLM error extraction that runs automatically on every failed step and on-demand AI debugging, both wrapped around the existing deterministic rules, which still run. AI extraction now covers 100% of failures, including those that legacy rules classified as unknown, and the design relies on hard deadlines, caching by step attempt and evals built from archived logs.",
+        "beforeYouRead": [
+          {
+            "term": "Input vs output tokens",
+            "explain": "LLMs read input tokens much faster than they generate output tokens. Designs that keep outputs short therefore cut latency and cost."
+          },
+          {
+            "term": "LLM-as-judge",
+            "explain": "Using a model to score another model's output against a rubric or reference. This scales evaluation but adds its own error."
+          },
+          {
+            "term": "Conditional write",
+            "explain": "A storage write that succeeds only if a condition holds, for example if the key does not exist yet. It lets exactly one of several concurrent callers claim a task."
+          },
+          {
+            "term": "Server-sent events (SSE)",
+            "explain": "A one-way HTTP streaming mechanism in which the server pushes events to the client over a long-lived connection."
+          },
+          {
+            "term": "MCP",
+            "explain": "Model Context Protocol, an interface that lets AI agents and tools call services. Here it is one of the access paths to Pensive AI Debugging, alongside programmatic APIs and the Data Portal UI."
+          }
+        ],
+        "keyIdeas": [
+          "Scale: millions of workloads run daily across systems such as Titus, Spark, Trino and Druid, with roughly 100,000 failures on peak days. Legacy Pensive used regular expressions and hand-written Java rules and made about 50% of failures self-service. Over one three-month period it processed about 7 million job-failure classifications, and about half were 'unknown'.",
+          "Extraction trick: logs are passed as numbered {lineNumber, text} records, and the model returns only the start and end line numbers. Pensive rebuilds the text from its own copy of the log, which cuts output tokens and latency and reduces hallucinated content, although the model can still pick the wrong range.",
+          "The overall Pensive response must return within Maestro's hard 90-second post-processing timeout. Per-log extraction calls run in parallel under one shared deadline set well inside that limit, and calls that miss it are excluded so the response still returns on time. Legacy rules always run.",
+          "The schema migration is additive. A new list of per-log-source errors with deep links sits beside the legacy flat error string, and both are populated. During rollout Data Portal preferred the AI field and fell back to the legacy one. The query editor, Workbench notebooks and some Slack clients still read the legacy field.",
+          "On-demand debugging takes tens of seconds to a minute and runs only when requested. It is cached per step attempt, not per user. A conditional write creates an in-progress record so only one caller generates, stale records are reclaimed after an abandonment timeout, and completed responses expire after 90 days. Responses stream over SSE, which the GraphQL layer republishes as a WebSocket subscription. Each event carries the full text so far, and generation continues if the client disconnects.",
+          "Evals: legacy rules act as frozen reference labels. Logs, which can expire after 7 to 30 days, are archived to S3 asynchronously without overwriting existing objects, so inputs stay reproducible. Four extraction signals are tracked: inclusion (an LLM judge), precision (a second judge), repeated noise (a script flags lines in more than about 30% of workflows as exclusion candidates, and the exclusion list has only three lines), and latency. Debugging ground truth is mined from resolved Slack support threads, with one LLM selecting threads and a second synthesising reference responses. Tracing uses a Braintrust-based backend, and the trace ID is returned with each response.",
+          "Failed step attempts where no one used Pensive AI averaged 321% more manual debug-log exploration actions. The authors state this is observational, not causal."
+        ],
+        "seniorLens": "The strongest pattern here is AI wrapped around deterministic systems: rules still run, AI output is additive, and the old field stays populated, so a bad model has limited blast radius and rollback is simpler. The line-number design is a reusable idea: make the model point at data instead of reproducing it. Trade-offs to watch: dropping per-log calls that miss the deadline means partial results, and the source does not say whether users are told a log was skipped. Using legacy rules as labels mainly measures regressions on failures the rules already knew, and the authors note the rules may themselves be stale. The 'unknown' failures, where AI adds most value, have no legacy label to compare against, so they rely on the precision judge, whose own accuracy is not reported here. Slack-mined ground truth is biased toward problems people escalated and resolved, and it is synthesised by a second model. The 321% figure is correlation; users who skip the tool may face different failures. Keying the cache on the immutable step attempt is what makes caching, deduplication and cross-channel reuse (UI to MCP) work. Sending the full text in every stream event trades some duplicated bandwidth for a client that needs no replay buffer and self-corrects after dropped events. Dual-field migrations stay cheap only if someone eventually moves the remaining clients across. The source text is cut off partway through Part 4, so release-gate details are not covered.",
+        "whyItMatters": "This is a concrete template for putting LLMs into production operational tooling with bounded latency, controlled cost, reproducible evaluation and explicit guarding against regressions on what already worked.",
+        "forYou": "When adding an LLM feature, keep the deterministic path running and add the AI output alongside it, not in place of it. Have the model return indices or IDs rather than copied text. Put a hard shared deadline on fan-out calls. Cache by an immutable domain key, and use a conditional write to deduplicate concurrent generation. Snapshot inputs to object storage so evals are repeatable. Expose a trace ID so user feedback leads straight to the trace.",
+        "questions": [
+          "How does Pensive AI extract an error span without having the model reproduce the log text, and what two benefits does this give?",
+          "What are the four signals Netflix uses to evaluate error extraction, and what threshold flags a line as a candidate for repeated-noise exclusion?"
+        ],
+        "tags": [
+          "llm",
+          "observability",
+          "evals",
+          "data-platform"
+        ],
+        "verifyNotes": "tldr: cut from 3 sentences to 2; changed 'every failure' to 'every failed step'; dropped 'roughly half' from the unknown-coverage claim, since the half figure comes from one three-month period. Key ideas: noted that latency is reduced as well as cost; stated that the 90-second limit applies to the overall Pensive response; put the Data Portal fallback in the past tense to match the rollout; specified completed responses for the 90-day expiry and the WebSocket subscription; said logs 'can' expire; described repeated noise as script-flagged exclusion candidates rather than lines that 'left' the list; added the two-model Slack pipeline; changed 'Braintrust tracing' to a Braintrust-based backend. Senior lens: softened 'small' and 'trivial'; replaced the claim that users get no skip signal with a note that the source does not say; clarified that unknown failures rely on the precision judge; corrected the streaming trade-off description. whyItMatters: replaced 'no regression' with 'guarding against regressions'. Question 2: changed 'flags a line as repeated noise' to 'candidate for exclusion'.",
+        "kind": "deep",
+        "title": "Making Failure Diagnosis Reliable with Pensive AI",
+        "source": "Netflix Tech Blog",
+        "url": "https://netflixtechblog.com/making-failure-diagnosis-reliable-with-pensive-ai-6b0811a1c015?source=rss----2615bd06b42e---4",
+        "track": "systems",
+        "publishedAt": "2026-10-26T17:04:57.000Z",
+        "minutes": 17,
+        "whySelected": "Netflix describes how it made automated failure diagnosis trustworthy across many data and ML pipelines, a reliability problem at large scale."
+      }
+    ],
+    "quickReads": [
+      {
+        "id": "1f9db07244",
+        "tldr": "Over HTTP/1 (HTTP/1.0 and 1.1), a Go client that closed a response without reading the body could not reuse the connection through Go 1.26, so its next requests had to open new connections and pay the TCP+TLS setup cost again. With HTTP/2 disabled, calling such a status-only function 100 times against index.golang.org took ~710 ms on Go 1.26 and ~150 ms on Go 1.27 on the author's machine, almost 5x faster.",
+        "keyIdea": "HTTP/1 sends responses back-to-back on one TCP stream, so the next response can only be found after the current body is read to the end (per Content-Length or Transfer-Encoding). Through Go 1.26, calling resp.Body.Close on an unread body made net/http abandon the connection and open a new one. With TLS 1.2, that means a TCP handshake (1 RTT) plus a TLS handshake (2 RTT) before the request is sent, about 300 ms at a 100 ms RTT. HTTP/2 does not have this problem because it multiplexes streams over one connection.",
+        "whyItMatters": "Code that ignores response bodies can silently force a new connection per request and multiply latency, and nothing in the code looks wrong.",
+        "tags": [
+          "go",
+          "http",
+          "networking"
+        ],
+        "verifyNotes": "Changed 'every request paid' to 'next requests had to open new connections'; noted that the benchmark disabled HTTP/2 and ran on the author's machine; scoped the 2-RTT handshake to TLS 1.2 (index.golang.org uses TLS 1.3).",
+        "kind": "quick",
+        "title": "Better HTTP/1 connection reuse",
+        "source": "Go Blog",
+        "url": "https://go.dev/blog/http-connection-reuse",
+        "track": "backend",
+        "publishedAt": "2026-10-14T00:00:00.000Z",
+        "minutes": 14,
+        "whySelected": "A concrete Go 1.27 HTTP client change that explains connection pooling, keep-alive and why sequential HTTP/1 requests got faster."
+      },
+      {
+        "id": "5c61ddd850",
+        "tldr": "A use-after-free in a single-type object pool still aliases memory, but it avoids the type confusion that makes malloc/free use-after-free exploitable, unless the object stores an inline enum. TigerStyle goes further: allocate a fixed maximum of objects at startup, and treat empty slots as neutral 'reserved' objects so the code always iterates the full configured set.",
+        "keyIdea": "No dynamic allocation after initialization: size everything at startup (e.g. --orders-max) and reject the surplus. This prevents an extra allocation from triggering the OOM killer, which could kill the whole process or its supervisor at capacity. With constant work, the code iterates over all slots and treats reserved ones as no-ops, so the maximum-load case is the normal case. If performance at the limit is unacceptable, that is a bug, because gray failure (unusable slowness) is another way to break at the limit. Typed allocators that use type-segregated pools can also remove most type confusion, though inline enums break this unless enum variants are heap-allocated.",
+        "whyItMatters": "Fixed limits and constant work turn overload and lifetime bugs into predictable, defined behaviour instead of catastrophic crashes or exploitable memory corruption.",
+        "tags": [
+          "memory-safety",
+          "systems-design",
+          "allocation"
+        ],
+        "verifyNotes": "Added the inline-enum caveat to the tldr; replaced 'does the work of its full configured load' with 'iterates the full configured set'; corrected the gray-failure claim (the source calls it another way to break at the limit and does not mention production); added the heap-allocated enum variant exception.",
+        "kind": "quick",
+        "title": "Static Allocation, Constant Work",
+        "source": "matklad",
+        "url": "https://matklad.github.io/2026/09/02/static-allocation-constant-work.html",
+        "track": "design",
+        "publishedAt": "2026-09-02T00:00:00.000Z",
+        "minutes": 7,
+        "whySelected": "matklad on static allocation and constant-work design, a compact lesson in building predictable, overload-resistant systems."
+      },
+      {
+        "id": "51ed0d8f55",
+        "tldr": "The article traces Postgres becoming the default database through several moments: Heroku Postgres launching as a standalone service in 2011, JSONB in 2014, overtaking MySQL in the 2023 Stack Overflow survey (45.6% to 41.1%), and in 2025 a surge in funding, adoption and choice by LLM agents. It calls 2025 the growth explosion that earlier decades led up to, and credits Heroku's convenience with first bringing much of the Rails and Python community to Postgres.",
+        "keyIdea": "The article looks for a turning point in Postgres's rise and finds it built on convenience and survival. Heroku picked Postgres for its managed database almost incidentally, after one engineer vouched for its reliability, and that convenience moved much of the Rails and Python community to it. JSONB in Postgres 9.4 (December 2014) let it store and index JSON, covering much of the document-database use case during MongoDB's peak. Today pgvector lets it handle vector workloads without a separate engine.",
+        "whyItMatters": "Defaults set by platforms and convenience compound over years, and they now shape what both developers and coding agents pick.",
+        "tags": [
+          "postgres",
+          "databases",
+          "history"
+        ],
+        "verifyNotes": "Clarified that 2011 was Heroku Postgres's standalone launch (first offered 2007); added the 2023 survey figures; replaced the unsupported 'especially Heroku's choice' and 'rather than one big launch' framing with claims the source makes; added why Heroku chose Postgres.",
+        "kind": "quick",
+        "title": "What was the turning point for Postgres?",
+        "source": "PlanetScale",
+        "url": "https://planetscale.com/blog/what-was-the-turning-point-for-postgres",
+        "track": "databases",
+        "publishedAt": "2026-10-27T00:00:00.000Z",
+        "minutes": 12,
+        "whySelected": "PlanetScale's account of how Postgres became the default database, useful history for judging database choices."
+      },
+      {
+        "id": "b7d248bc90",
+        "tldr": "Stripe moved its own vendor payments from ERP-connected direct bank integrations and manual bank-portal entry to its Global Payouts API, paying over $1B to more than 3,400 US and UK vendors by October 2026 with a 99.9% success rate. Setting up payouts in a new market dropped from up to six weeks to one, and finance and treasury teams save an estimated 20–30 hours a month on reporting and reconciliation.",
+        "keyIdea": "During the migration, most payment failures came from bad recipient data, such as an incorrect postal code, that surfaced only days later. Validating data before money moves let ops fix most issues in minutes. Stripe also found that sender-side tracing is not enough: recipients need customizable statement descriptors to recognise a payment. Scale testing has to cover transaction size, not just volume, so Stripe raised ACH and wire limits on the Outbound Payments API to $100M to keep large payments in the automated workflow. The rollout was staged in four waves, raising payment amounts only after nearly all eligible payouts in the previous wave succeeded.",
+        "whyItMatters": "It is a concrete pattern for migrating a money-moving system safely: validate early, give the receiving side context, test value as well as volume, and roll out in waves.",
+        "tags": [
+          "payments",
+          "migration",
+          "fintech"
+        ],
+        "verifyNotes": "Cut the tldr from 3 sentences to 2; added manual bank-portal entry to the prior setup; scoped the failure finding to the migration; specified that the raised limits apply to the Outbound Payments API and that the descriptors are customizable.",
+        "kind": "quick",
+        "title": "Stripe on Stripe: What we learned moving $1B in vendor payments to Global Payouts",
+        "source": "Stripe Engineering",
+        "url": "https://stripe.com/blog/stripe-on-stripe-what-we-learned-moving-1b-in-vendor-payments-to-global-payouts",
+        "track": "backend",
+        "publishedAt": "2026-10-30T00:00:00.000Z",
+        "minutes": 5,
+        "whySelected": "Stripe's lessons from moving $1B of its own vendor payments onto Global Payouts, with real figures on rollout across countries."
+      },
+      {
+        "id": "20bfb0269b",
+        "tldr": "AI models make it easier for attackers to reverse-engineer a security fix and attack the older, unpatched version during the 'patch gap', the window between a fix appearing in the code and most users receiving it. Firefox is narrowing that window and plans to group fixes so the patch gaps of different sandbox layers never overlap.",
+        "keyIdea": "A full Firefox compromise needs a chain, at minimum a renderer exploit plus a sandbox escape. If fixes for each layer have non-overlapping patch gaps, only one ingredient of the chain is exposed at a time, and an attacker must find at least one novel bug that frontier-model efforts missed. Supporting measures: weekly releases (the release cycle was halved), keeping regression tests confidential until the fix ships (GLM 5.3 was much less effective at patch-gapping without them), and scanning new commits for newly introduced bugs. Since February, using frontier models from Anthropic and OpenAI, Firefox has shipped more than seven times as many security fixes as in the same period of 2025.",
+        "whyItMatters": "AI makes it faster and cheaper to turn a public security fix into an exploit, so release timing and layered defence become part of the security design itself.",
+        "tags": [
+          "security",
+          "ai",
+          "browsers"
+        ],
+        "verifyNotes": "Softened 'now let attackers' to 'make it easier'; corrected the patch-gap definition (fix appears in code, not 'shipped'); noted that the overlap scheme is planned and takes coordination; qualified 'novel bug'; added that weekly releases came from halving the cycle and that the fix count dates from February; replaced the overgeneralized 'every security fix now leaks the vulnerability faster'.",
+        "kind": "quick",
+        "title": "Defending the patch gap against automated attackers",
+        "source": "Lobsters",
+        "url": "https://blog.mozilla.org/en/firefox/privacy-security/defending-patch-gap/",
+        "track": "general",
+        "publishedAt": "2026-10-30T21:06:04.000Z",
+        "minutes": 5,
+        "whySelected": "Covers how to shrink the window between a patch's release and its deployment now that attackers automate exploitation of known flaws."
+      },
+      {
+        "id": "bf5aaab635",
+        "tldr": "Version 2.1.313 of the official Claude Code for VS Code extension on the Cursor Marketplace contained an injected IIFE that adds an attacker-controlled Ed25519 key to ~/.ssh/authorized_keys, tries to enable the SSH daemon, installs persistence and beacons host reconnaissance on macOS, Linux and Windows. Cursor removed the release and also pulled the NPM and VS Code 2.1.313 versions, and organisations should check for that version and start incident response if they find it.",
+        "keyIdea": "Extensions run with the permissions of the IDE and its user, and code prepended to the bundle runs as soon as Node loads the file, before activate() and with no user interaction. On macOS, a bug blocks inbound access on Macs where Remote Login is not already on. Without admin rights, systemsetup -getremotelogin prints an error and exits 0 instead of printing 'Off', so the script never runs sudo -n to enable Remote Login. The key and persistence are still installed, so the backdoor works if Remote Login is already enabled or is turned on later.",
+        "whyItMatters": "It shows how a trusted developer tool can become a supply-chain foothold. It also shows why you should hunt by public-key fingerprint, not by the 'svc-telemetry' comment the malware itself checks for.",
+        "tags": [
+          "security",
+          "supply-chain",
+          "ssh"
+        ],
+        "verifyNotes": "Made 'attacker key' read 'attacker-controlled key'. Stated that Cursor pulled the NPM and VS Code versions. Replaced the vague 'saves some victims' with the specific condition: Remote Login not already enabled. Noted that the backdoor also works if Remote Login was already on.",
+        "kind": "quick",
+        "title": "Backdoor in Claude Code for VS Code extension on the Cursor Marketplace",
+        "source": "Hacker News",
+        "url": "https://phorion.io/blog/offical-claude-code-vsx-compromise/",
+        "track": "general",
+        "publishedAt": "2026-10-30T07:09:12.000Z",
+        "minutes": 16,
+        "whySelected": "A backdoored editor extension on a marketplace is a concrete case of developer-tool supply-chain risk."
+      },
+      {
+        "id": "e34a839c61",
+        "tldr": "After a Wiz threat alert at 11:43 UTC, Northflank told all users to assume every environment variable had been decrypted, to rotate all secrets, and to disable public access on addons, while all seven Northflank Platform components showed a major outage. Multiple users confirmed that AI API keys supplied to the platform were used without authorisation, which Northflank said may be consistent with a broader pattern of attacks on AI credentials described in Wiz's 'Black October' report.",
+        "keyIdea": "Northflank's guidance was to assume every stored credential is exposed. Users should revoke each credential with its issuing provider, generate a replacement, and update the affected secrets and workloads. They should also review AI provider usage and billing logs and report suspicious activity to Northflank support and the provider.",
+        "whyItMatters": "AI API keys stored in a PaaS are a high-value target that attackers can use directly, so being able to rotate secrets and monitor usage quickly matters when a provider is compromised.",
+        "tags": [
+          "security",
+          "incident-response",
+          "secrets"
+        ],
+        "verifyNotes": "Replaced 'most platform components' with 'all seven Northflank Platform components' because the App, API, marketing site and docs were operational. Attributed the link to a wider campaign to Northflank and cited the Wiz report. Added the step of reporting suspicious usage. Softened the unsupported claim that rotation must be 'ready before an incident'.",
+        "kind": "quick",
+        "title": "Northflank Breached",
+        "source": "Hacker News",
+        "url": "https://status.northflank.com",
+        "track": "general",
+        "publishedAt": "2026-10-30T15:10:31.000Z",
+        "minutes": 3,
+        "whySelected": "A breach of a cloud deployment platform, relevant to anyone who trusts a PaaS with secrets and builds."
+      },
+      {
+        "id": "4ef4ae17d6",
+        "tldr": "At Imprint, the average engineer merges 4x more PRs than two years ago, and p50 review time grew from about 33 to 77 minutes, tightly correlated with that rise. A CI-managed 'small-change' check now marks eligible PRs, which a review skill can approve or ignore but never comment on.",
+        "keyIdea": "A GitHub check managed by the build, not editable by humans, decides eligibility. A PR qualifies if it meets all of these criteria:\n- It is under 1,000 lines.\n- The ai-code-review bot reports no p1 or p2 findings.\n- The author has 10+ prior merged PRs in each affected service.\n- It touches fewer than N services (N is 1 in the frontend monorepo and 3 in the backend monorepo).\n- It avoids shared libraries and paths excluded in a per-repo .small_change file.\nAny error caused by a small-change is treated as a system failure, to be fixed in ai-code-review, verification, CI/CD or the harness.",
+        "whyItMatters": "Review becomes the bottleneck as PR volume rises, and this is a narrow, contained way to test a fix. It also avoids 'meat proxy review', where reviewers post harness-generated comments that may not reflect their own view.",
+        "tags": [
+          "code-review",
+          "ci-cd",
+          "engineering-management"
+        ],
+        "verifyNotes": "Clarified the 4x figure as the average engineer's merged PRs. Removed the unsupported words 'fast' and 'instead of a human review'. Noted that the check is build-managed and listed the N values. Added ai-code-review to the system-level fixes. Changed 'reversible' to 'contained' to match the source. Restated meat proxy review more accurately.",
+        "kind": "quick",
+        "title": "Speeding up code review with `small-change`",
+        "source": "Will Larson",
+        "url": "https://lethain.com/small-changes/",
+        "track": "career",
+        "publishedAt": "2026-10-17T12:00:00.000Z",
+        "minutes": 8,
+        "whySelected": "Will Larson gives a practical pattern for keeping code review fast as PR volume grows about four times."
+      },
+      {
+        "id": "da85974fc5",
+        "tldr": "Whitespace has no single definition: Unicode's White_Space property lists 25 characters, Java's Character.isWhitespace excludes U+00A0 and two other non-breaking spaces, Python's isspace accepts 29 characters, and JavaScript's \\s rejects U+0085 but accepts U+FEFF. Guava checks against the Unicode set with a 32-slot perfect hash table, computing (1682554634 * c) >>> 27 and then doing an equality check.",
+        "keyIdea": "The definition of 'whitespace' depends on the runtime and the Unicode version; Unicode 6.3 removed U+180E, taking the set from 26 to 25. Guava avoids a linear scan: it multiplies, keeps the top 5 bits as a table index, and compares the stored character to the input.",
+        "whyItMatters": "Parsing, validation or trimming that crosses language boundaries can silently disagree about which characters count as whitespace.",
+        "tags": [
+          "unicode",
+          "hashing",
+          "java"
+        ],
+        "verifyNotes": "Merged the tldr from 3 sentences into 2. All facts checked against the source.",
+        "kind": "quick",
+        "title": "How hard is it to check for whitespace?",
+        "source": "Lobsters",
+        "url": "https://serce.me/posts/2026-10-30-how-hard-is-it-to-check-for-whitespace",
+        "track": "general",
+        "publishedAt": "2026-10-30T22:25:49.000Z",
+        "minutes": 8,
+        "whySelected": "A deceptively simple question that exposes Unicode and parsing edge cases every web and backend developer meets."
+      },
+      {
+        "id": "2ac71e9115",
+        "tldr": "The authors argue that the federal Stealth Bot Prohibition Act and New York's Stealth Crawler Prohibition Act would force crawlers to disclose their identity and purpose without directly targeting the harms of abusive crawling, such as heavy request volume. They say this could deter journalism, archiving, research and security work that relies on anonymous scraping.",
+        "keyIdea": "Disclosing identity does not limit load. Under the New York bill, a company that identifies itself and hits a site 10,000 times a minute would comply, while a journalist's anonymous crawler would not. Identification requirements for accessing information raise First Amendment concerns, as in Lamont v. Postmaster General. Vague terms such as 'reasonably likely to burden or impair a website' make those concerns worse.",
+        "whyItMatters": "Laws aimed at AI scrapers could chill tools that public-interest work relies on, such as the Wayback Machine, which has archived more than one trillion webpages. Unmasking a crawler also does not reduce the number of requests it sends.",
+        "tags": [
+          "web-scraping",
+          "policy",
+          "crawlers"
+        ],
+        "verifyNotes": "Changed 'do nothing about the actual harm, which is abusive request volume' to 'without directly targeting the harms of abusive crawling', since the source names more harms than volume. Changed 'would' to 'could'. Attributed the 10,000-requests example to the New York bill. Corrected the First Amendment point: it rests on the identification requirement, and vagueness heightens it.",
+        "kind": "quick",
+        "title": "Breaking the open web won't stop the bad bots",
+        "source": "Hacker News",
+        "url": "https://www.techpolicy.press/breaking-the-open-web-wont-stop-the-bad-bots/",
+        "track": "general",
+        "publishedAt": "2026-10-27T18:42:55.000Z",
+        "minutes": 8,
+        "whySelected": "Argues about the trade-offs of bot-blocking measures for the open web, which matters for anyone running public sites."
+      }
+    ],
+    "aiNews": [
+      {
+        "id": "c91316c9b1",
+        "tldr": "Figma trained its own design-editing model, first with supervised fine-tuning (SFT) on synthetic edit examples in Figma's native file format, and is now also investing in reinforcement learning (RL) because SFT alone generalised poorly and needed many examples. Inside the Figma agent, this model handles precise edits and iterations, while third-party models handle image generation, vectors and new design explorations.",
+        "keyIdea": "A post-trained model built for one narrow, repeated task (editing existing designs) can compete with frontier models. Quality is measured as separate dimensions (structural checks, visual judges, expert calibration) rather than one subjective score.",
+        "whyItMatters": "It shows a practical pattern for production AI: route frequent, narrow tasks to a specialised post-trained model built for speed, and keep frontier models for open-ended work.",
+        "tags": [
+          "ai",
+          "fine-tuning",
+          "evals"
+        ],
+        "verifyNotes": "tldr: changed 'adding RL' to 'now also investing in RL' to match source wording; added 'iterations'. whyItMatters: removed 'cheaper', since the source attributes cost reductions to the whole agent, not specifically to the model.",
+        "kind": "ai",
+        "title": "How we’re training a Figma-fluent editing model",
+        "source": "Figma Engineering",
+        "url": "https://www.figma.com/blog/training-a-figma-fluent-editing-model/",
+        "track": "systems",
+        "publishedAt": "2026-10-29T21:00:00.000Z",
+        "minutes": 6,
+        "whySelected": "Figma shares research on post-training a specialised editing model, evidence that targeted training can compete with frontier models."
+      },
+      {
+        "id": "efc2d0980d",
+        "tldr": "Marc Brooker built Hobson, a roughly 2B-parameter calibrated classifier: it takes Qwen3.5-2B, replaces its text-generating LM head with a small pointer head (just over 1M parameters) that scores each answer option, and fine-tunes the base model with a rank-16 LoRA adapter. On the jevbench public set it tops its size range on the leaderboard and beats Qwen3.5-2B on both accuracy and calibration, measured by multi-class Brier score.",
+        "keyIdea": "Scoring option hidden states with a pointer head appears to give better calibration than reading an equivalent-size LLM's output logits. Shuffling options blocks positional bias, self-distillation limits forgetting, and per-question-type temperature scaling on held-out data calibrates the confidence scores.",
+        "whyItMatters": "Small, calibrated, low-latency classifiers are a practical building block for workflow-style agents, but in his experiments in-task accuracy improved far more easily than generalisation to unseen tasks.",
+        "tags": [
+          "ai",
+          "calibration",
+          "fine-tuning"
+        ],
+        "verifyNotes": "tldr: cut from 3 sentences to 2; specified 'public set' and 'leaderboard', because a newer decider-2b beats it but is not yet listed. keyIdea: added 'equivalent-size'. whyItMatters: framed the generalisation finding as his experimental result.",
+        "kind": "ai",
+        "title": "Small Decisions: Engineering a Leading Model",
+        "source": "Marc Brooker (AWS)",
+        "url": "http://brooker.co.za/blog/2026/09/28/engineering-system-one.html",
+        "track": "systems",
+        "publishedAt": "2026-09-28T00:00:00.000Z",
+        "minutes": 11,
+        "whySelected": "Marc Brooker works through the engineering decisions behind building a small, leading model, written from a systems engineer's view."
+      },
+      {
+        "id": "77544766b8",
+        "tldr": "Hamel Husain and Isaac Flath tested the build_eval and hill-climb commands in Anthropic's claude-api plugin for Claude Code on traces from an apartment leasing assistant. It discovered issues well in one shot, but it pushed them to create evals before looking at the data, asked them to validate labels without enough context, and bundled four checks into one evaluator.",
+        "keyIdea": "Do error analysis on your data before choosing evals. Scope each evaluator to one failure, or at least keep code-based checks separate from LLM-as-a-judge checks, and read the generated judge prompt or code.",
+        "whyItMatters": "Evals chosen before you understand the data may target failures that aren't real or aren't priorities. Reviewing through chat instead of a proper annotation tool, with vague evaluator descriptions, makes it hard to check how pass or fail is decided.",
+        "tags": [
+          "evals",
+          "llm",
+          "ai-tooling"
+        ],
+        "verifyNotes": "tldr: added Isaac Flath as co-tester and changed 'him' to 'them'. keyIdea: added 'or at least' to match the source's fallback suggestion. whyItMatters: reworded the vague 'measure the wrong failures' and 'hide how they decide' claims to match the source.",
+        "kind": "ai",
+        "title": "Claude’s new auto eval tool",
+        "source": "Hamel Husain",
+        "url": "https://hamel.dev/blog/posts/claude-auto-evals/",
+        "track": "ai",
+        "publishedAt": "2026-09-30T07:00:00.000Z",
+        "minutes": 4,
+        "whySelected": "Hamel Husain reviews new tooling for building evals and hill-climbing on them, which is practical for LLM application work."
+      },
+      {
+        "id": "feb4caa835",
+        "tldr": "Google Research proposes a sleep framework for continual learning, in which an LLM alternates between an active (wake) phase that stores information in short-term memory and an offline sleep phase that consolidates it into newly unlocked low-rank Mixture-of-Experts (MoE) experts and self-improves by 'dreaming' synthetic training data. The authors report continuous acquisition of new facts, retention of long-context knowledge up to 10M tokens, and improved reasoning while mitigating catastrophic forgetting.",
+        "keyIdea": "Catastrophic forgetting (new training overwriting old abilities) is reduced by expanding parameters rather than overwriting them. Short-term memories are distilled into new low-rank experts using on-policy distillation plus a semantic-similarity reward, then the temporary high-frequency parameters are reset.",
+        "whyItMatters": "It targets two core limits of deployed LLMs: a fixed knowledge cutoff, and in-context learning that is lost once the session ends.",
+        "tags": [
+          "continual-learning",
+          "llm",
+          "mixture-of-experts"
+        ],
+        "verifyNotes": "tldr: cut from 3 sentences to 2; changed 'parameters' to 'experts'. keyIdea: specified 'semantic-similarity reward' and 'high-frequency' parameters.",
+        "kind": "ai",
+        "title": "The sleep framework: A new way for LLMs to retain knowledge in continual learning",
+        "source": "Google Research",
+        "url": "https://research.google/blog/the-sleep-framework-a-new-way-for-llms-to-retain-knowledge-in-continual-learning/",
+        "track": "ai",
+        "publishedAt": "2026-10-27T17:35:00.000Z",
+        "minutes": 9,
+        "whySelected": "Google Research proposes a framework for retaining knowledge during continual learning, a core open problem for LLMs."
+      },
+      {
+        "id": "8ccea7e89b",
+        "tldr": "Mistral released open weights for Mistral Large 4, a 1-trillion-parameter, natively multimodal model trained from scratch on European infrastructure. Additional RL since its public preview improved coding (including three weeks that lifted it to the front of open-weight coding) and defensive cybersecurity, and it now offers low, medium and high (default) reasoning modes.",
+        "keyIdea": "Token efficiency is a key cost lever. It scores 48% on the Artificial Analysis Coding Agent Index, effectively tied with GLM-5.3 while using 47% fewer tokens per task on average. On Terminal-Bench 4.0 it rose 13 percentage points over its preview to 41% while cutting output tokens by 30%.",
+        "whyItMatters": "It offers a self-hostable open-weight option for coding and defensive security work. Mistral reports 51% on the Artificial Analysis Cyber Index and a 96.6% average refusal rate on malicious cyber requests.",
+        "tags": [
+          "llm",
+          "open-weights",
+          "security"
+        ],
+        "verifyNotes": "tldr: the source ties the 'three weeks' of RL specifically to coding gains, so the cyber gains are now credited to continued RL generally. keyIdea: added 'on average', 'percentage points' and 'over its preview'.",
+        "kind": "ai",
+        "title": "We're releasing the weights of Mistral Large 4",
+        "source": "Hacker News",
+        "url": "https://mistral.ai/news/mistral-large-4-oss/",
+        "track": "general",
+        "publishedAt": "2026-10-29T14:13:21.000Z",
+        "minutes": 20,
+        "whySelected": "Mistral released the weights of a large frontier-class model, a significant change in the open-model landscape."
+      }
+    ],
+    "concept": {
+      "track": "Databases",
+      "title": "Indexes: B-trees, How a Query Uses Them, and Why They Slow Writes",
+      "minutes": 13,
+      "intro": "Most production database performance problems come down to indexes: a missing index that turns a 2 ms lookup into a 4-second full table scan, or too many indexes that cut insert throughput in half and bloat memory. A senior engineer can look at a query and its EXPLAIN plan and predict which index will be used, why, and how expensive it will be. That prediction depends on knowing how a B-tree is laid out on disk and how the planner prices each access path. This lesson covers that structure, the rules that decide whether an index is usable, and the write-side cost you pay for every index you add.",
+      "sections": [
+        {
+          "heading": "Prerequisites: pages, random I/O, and why scans hurt",
+          "body": "Databases do not read rows. They read fixed-size pages: 8 KB in PostgreSQL and 16 KB in MySQL InnoDB. A page is the unit of I/O and of caching. Everything is cached in a buffer pool, which is the database's own memory cache: shared_buffers in Postgres, innodb_buffer_pool_size in InnoDB. Whether a page is already in memory is often the single biggest factor in query latency. A buffer hit costs microseconds. A random read from NVMe costs roughly 50-100 µs, and on network block storage such as AWS EBS gp3 it costs about 0.5-1 ms.\n\nWithout an index, finding `WHERE email = 'a@b.com'` in a 50 M-row table means reading every page. That is a sequential scan. At roughly 100 rows per 8 KB page, it is about 500,000 pages, or around 4 GB. Sequential reads are fast per byte, but this is still seconds of I/O and CPU. It also evicts useful pages from the cache, which slows every other query.\n\nAn index is a separate data structure. It stores column values in sorted order, together with a pointer to each row. Because the values are sorted, the database can locate one value, or a contiguous range of values, by touching a handful of pages instead of all of them."
+        },
+        {
+          "heading": "B+tree structure and why it is only 3-4 levels deep",
+          "body": "Nearly every relational database uses a B+tree for its default index. Internal pages hold separator keys plus child page pointers. Leaf pages hold the actual index entries: the key plus a row pointer. Each leaf is linked to its neighbours. The tree is always balanced, so every lookup travels the same number of levels from root to leaf.\n\nThe key property is fanout. A 16 KB internal page holding 8-byte bigint keys plus child pointers and overhead fits several hundred entries. Assume a fanout of about 500. Three levels then address 500³ = 125 M leaf entries, and four levels address around 60 billion. Wider keys reduce fanout. A 36-character UUID stored as text holds far fewer entries per page than a 16-byte binary UUID or an 8-byte bigint. Even so, depth stays at 3-5 for almost any real table.\n\nThe root and internal levels are small and heavily used, so they almost always stay in the buffer pool. A point lookup therefore usually costs about one leaf-page read plus one row fetch. This is why an indexed lookup on a billion-row table can still take under a millisecond. The linked leaves matter too. A range predicate such as `created_at BETWEEN x AND y` descends once to find the start, then walks leaves sideways in sorted order. The same leaf walk lets `ORDER BY ... LIMIT 20` avoid a sort entirely."
+        },
+        {
+          "heading": "How the planner decides to use an index",
+          "body": "The query planner is cost-based. It estimates how many rows each predicate matches from column statistics: histograms and most-common-value lists, refreshed by ANALYZE. It then prices each possible access path and picks the cheapest. The main paths are these:\n\n- **Index scan:** walk the index, then fetch each row from the table.\n- **Index-only scan:** every column the query needs is already in the index, so the table is not touched.\n- **Bitmap scan (Postgres):** collect matching row locations from the index, sort them by physical position, then read table pages in order.\n- **Sequential scan:** read the whole table.\n\nSelectivity, meaning the fraction of rows a predicate matches, decides the outcome. Each row fetched through an index can be a random page read. If a predicate matches 20% of a table, reading the table sequentially is usually cheaper than millions of random fetches. The break-even point is often somewhere between a few percent and about 20% of rows, and it depends on how well the table's physical order matches the index order. So `WHERE status = 'active'` on a column where 95% of rows are active will rightly ignore the index. Stale statistics are a common cause of bad plans: if the planner thinks a predicate matches 10 rows when it actually matches 2 M, it will pick the wrong path.\n\nCovering indexes remove the row fetch entirely. In Postgres you can write `CREATE INDEX ON orders (customer_id) INCLUDE (total, status)`. In MySQL you get the same effect by adding the extra columns to the index key. Postgres has one extra condition for index-only scans: it must check the visibility map to confirm that each page's rows are visible to all transactions. On a heavily updated table that has not been vacuumed recently, a plan labelled index-only scan still visits the table. Check the 'Heap Fetches' count in EXPLAIN ANALYZE to see whether this is happening."
+        },
+        {
+          "heading": "Composite indexes and the rules that make an index unusable",
+          "body": "A composite index on (a, b, c) is sorted by a first, then by b within each value of a, then by c. That ordering produces the leftmost-prefix rule. The index efficiently serves queries filtering on `a`, on `a AND b`, or on `a = ? AND b > ?`. It cannot efficiently serve a query on `b` alone, because rows matching a given b are scattered across every value of a. Some engines can partially work around this with skip scan: MySQL 8.0.13+ and PostgreSQL 18. Skip scan only pays off when `a` has few distinct values, so do not design around it.\n\nThe ordering rule for composite indexes is equality columns first, then the range or sort column. Consider `WHERE tenant_id = ? AND created_at > ? ORDER BY created_at`. It wants an index on (tenant_id, created_at). With that order, all rows for one tenant are contiguous and already sorted by time. The reversed index, (created_at, tenant_id), forces the database to scan every tenant's rows inside the time range.\n\nSeveral common patterns silently make an index unusable:\n\n- **Wrapping the column in a function:** `WHERE lower(email) = ?` cannot use a plain index on email. Create an expression index, `CREATE INDEX ... ON users (lower(email))`, instead.\n- **Implicit type casts:** comparing a varchar column to a number in MySQL, for example, forces a conversion on every row.\n- **Leading wildcards:** `LIKE '%foo'` cannot use a B-tree. Use a trigram index (pg_trgm) or a full-text index.\n- **Locale-dependent prefix matching in Postgres:** with a non-C collation, `LIKE 'foo%'` cannot use a default B-tree. It needs `text_pattern_ops` or a C collation.\n- **OR across different columns:** this often falls back to a sequential scan, or to a bitmap OR in Postgres."
+        },
+        {
+          "heading": "Clustered vs heap storage, and what it means for primary keys",
+          "body": "InnoDB stores the table itself as a B+tree ordered by primary key. This is a clustered index: the leaf pages contain the full rows. Each secondary index stores the primary key value as its row pointer. A secondary-index lookup is therefore two tree traversals: one through the secondary index to find the primary key, then one through the clustered index to find the row. A large primary key is copied into every secondary index, so a wide key inflates all of them.\n\nPostgres stores rows in an unordered heap. Every index, including the primary key's, points to a physical tuple location called a TID: a page number plus a slot within that page.\n\nPrimary key choice matters most in InnoDB. A random UUIDv4 key inserts into a random leaf page every time. This causes frequent page splits, leaves pages around 50-70% full instead of near 100%, and spreads writes across the entire index, so the working set no longer fits in memory. A monotonically increasing key, such as a bigint identity or a time-ordered UUIDv7, appends to the rightmost leaf. That keeps pages full and keeps the hot set small. The same effect hurts Postgres secondary indexes on random UUID columns, though less severely.\n\nIf I were starting a new schema today, I would use a bigint identity or UUIDv7 primary key by default. I would only reach for a random key if exposing sequential IDs were a genuine security concern."
+        },
+        {
+          "heading": "Why every index slows writes",
+          "body": "Every index must stay consistent with the table, inside the same transaction. An INSERT into a table with 1 primary key and 7 secondary indexes performs 8 B-tree insertions. Each one finds the right leaf (possibly a random page read), modifies it, may split it, and writes a WAL or redo log record. A UPDATE or DELETE adds similar work. This is write amplification: one logical change becomes many physical page writes. Adding indexes to a write-heavy table commonly cuts insert throughput by 30-50% or more, and that cost lands mostly on the primary.\n\nUpdates differ by engine. In Postgres, MVCC (multi-version concurrency control) writes a whole new row version for every UPDATE. Normally every index then receives a new entry pointing to that version. The exception is a HOT (heap-only tuple) update: if no indexed column changed and the same page has free space, Postgres skips the index updates. Each extra index on a frequently updated column therefore disables HOT for those updates, which increases bloat and vacuum work. Lowering the table's fillfactor to 80-90 leaves free space on each page and raises the HOT rate. InnoDB updates a secondary index only when one of that index's columns changes. It also buffers some secondary-index changes in its change buffer to reduce random I/O.\n\nThere are hidden costs beyond raw write speed. Indexes compete with table data for buffer pool memory; a table with indexes totalling 3x its size will have a worse cache hit rate. They lengthen backups and restores. Building one on a live table can block writes unless you use `CREATE INDEX CONCURRENTLY` (Postgres) or an online DDL tool for MySQL such as gh-ost or pt-online-schema-change.\n\nIn practice, design indexes from your actual query patterns, not from every column that appears in a WHERE clause. Verify each one with `EXPLAIN (ANALYZE, BUFFERS)`. Periodically drop indexes that are never scanned (`pg_stat_user_indexes.idx_scan = 0`, or `sys.schema_unused_indexes` in MySQL), and check replicas too before dropping. For bulk loads, drop secondary indexes, load the data, and rebuild them. One sorted index build is far cheaper than millions of random insertions."
+        }
+      ],
+      "diagram": "B+tree on users(id), fanout ~500, 3 levels\n\nLevel 0 (root, cached):        [ 40M | 80M ]\n                              /      |      \\\nLevel 1 (internal, cached): [..|20M|..] [..|60M|..] [..|100M|..]\n                             /    |\nLevel 2 (leaves):  [1..250] <-> [251..500] <-> [501..750] <-> ...\n                       |              (linked for range scans)\n                       v\n          Heap / clustered row: id=312, email=..., ...\n\nPoint lookup id=312:  root -> internal -> leaf -> row\n                      (~1 disk read if upper levels are in memory)\nRange id 300..600:    descend once, then walk leaves sideways",
+      "commonMistakes": [
+        "Indexing every column individually instead of designing composite indexes around real queries. Three single-column indexes rarely match one well-ordered (a, b, c) index, and they triple the write cost.",
+        "Putting the range column before the equality column in a composite index, e.g. (created_at, tenant_id) for WHERE tenant_id = ? AND created_at > ?. The database then scans every tenant's rows within the time range.",
+        "Using random UUIDv4 primary keys in InnoDB on a high-insert table. This causes constant page splits, half-empty pages, and a working set that no longer fits in memory. Use a bigint or UUIDv7 instead.",
+        "Assuming an index guarantees it will be used. Low selectivity, stale statistics, functions on the column, implicit casts, or leading-wildcard LIKE all lead the planner to choose a sequential scan, sometimes correctly."
+      ],
+      "interviewQuestions": [
+        "A query filters on WHERE tenant_id = ? AND status = ? ORDER BY created_at DESC LIMIT 50 and is slow. What index would you create and why? Hint: put the equality columns first, then the sort column, i.e. (tenant_id, status, created_at), so the database reads the first 50 leaf entries in order with no sort.",
+        "You added an index, but EXPLAIN still shows a sequential scan. What are the possible reasons? Hint: low selectivity, stale statistics (run ANALYZE), a function or type cast on the column, a leftmost-prefix mismatch, or a table small enough that a scan really is cheaper.",
+        "Insert throughput on a table dropped by 40% over six months. How do you investigate whether indexes are the cause? Hint: count indexes and their total size, find unused ones via idx_scan stats, check for random-key page splits and the HOT update ratio, and compare buffer pool hit rates."
+      ],
+      "questions": [
+        "Why does a B+tree on a billion-row table typically need only 3-4 levels, and why does a point lookup often cost only about one disk read?",
+        "In InnoDB, what does a secondary index store as its row pointer, and what extra work does that add to a secondary-index lookup?",
+        "What is a HOT update in PostgreSQL, and how does adding an index on a frequently updated column affect it?"
+      ]
+    }
+  },
+  "english": {
+    "words": [
+      {
+        "word": "flag",
+        "level": "basic",
+        "pos": "verb",
+        "ipa": "/flæɡ/",
+        "syllables": "flag",
+        "meaning": "To point out a problem or risk so that other people notice it.",
+        "examples": [
+          "I want to flag that the API change might break the mobile app.",
+          "She flagged a mistake in the invoice before it was sent."
+        ],
+        "synonyms": [
+          "point out",
+          "raise",
+          "highlight"
+        ],
+        "commonMistake": "Saying 'flag about something' instead of 'flag something'. You flag the issue directly.",
+        "etymology": "From the idea of raising a flag as a signal.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "ballpark",
+        "level": "basic",
+        "pos": "noun/adj",
+        "ipa": "/ˈbɔːlpɑːrk/",
+        "syllables": "ball-park",
+        "meaning": "A rough estimate, not an exact number.",
+        "examples": [
+          "Can you give me a ballpark figure for how long the migration will take?",
+          "We're in the same ballpark on price, so let's compare features."
+        ],
+        "synonyms": [
+          "rough estimate",
+          "approximate",
+          "guesstimate"
+        ],
+        "commonMistake": "Treating a ballpark number as a promise. It is only a rough idea.",
+        "etymology": "American baseball term: being 'in the ballpark' means being in the right general area.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "tweak",
+        "level": "basic",
+        "pos": "verb/noun",
+        "ipa": "/twiːk/",
+        "syllables": "tweak",
+        "meaning": "To make a small change to improve something.",
+        "examples": [
+          "I tweaked the cache settings and the page loads twice as fast now.",
+          "The recipe just needs a small tweak, maybe more salt."
+        ],
+        "synonyms": [
+          "adjust",
+          "fine-tune",
+          "modify"
+        ],
+        "commonMistake": "Using it for big changes. A tweak is always small.",
+        "etymology": "Old English 'twiccian', meaning to pluck or pull sharply.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "hiccup",
+        "level": "basic",
+        "pos": "noun",
+        "ipa": "/ˈhɪkʌp/",
+        "syllables": "hic-cup",
+        "meaning": "A small, temporary problem or delay.",
+        "examples": [
+          "We had a small hiccup with the deployment, but it's fixed now.",
+          "Apart from a hiccup at the airport, the trip went smoothly."
+        ],
+        "synonyms": [
+          "glitch",
+          "snag",
+          "setback"
+        ],
+        "commonMistake": "Using it for serious failures. A hiccup sounds minor, so don't use it for a major incident.",
+        "etymology": "Imitates the sound of the body's involuntary 'hic'.",
+        "tier": "everyday words an educated speaker uses but learners often miss"
+      },
+      {
+        "word": "straightforward",
+        "level": "basic",
+        "pos": "adj",
+        "ipa": "/ˌstreɪtˈfɔːrwərd/",
+        "syllables": "straight-for-ward",
+        "meaning": "Easy to understand or do; also honest and direct.",
+        "examples": [
+          "The fix is fairly straightforward; it should take an hour.",
+          "He gave me a straightforward answer, which I appreciated."
+        ],
+        "synonyms": [
+          "simple",
+          "clear",
+          "direct"
+        ],
+        "commonMistake": "Writing it as two words ('straight forward') when you mean 'simple'.",
+        "etymology": "From 'straight' + 'forward', moving directly ahead.",
+        "tier": "everyday words an educated speaker uses but learners often miss"
+      },
+      {
+        "word": "ramp up",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ræmp ʌp/",
+        "syllables": "ramp up",
+        "meaning": "To increase gradually; also to get a new person up to speed.",
+        "examples": [
+          "It took me about three weeks to ramp up on the new codebase.",
+          "Stores ramp up hiring before the holidays."
+        ],
+        "synonyms": [
+          "scale up",
+          "increase",
+          "get up to speed"
+        ],
+        "commonMistake": "Using it for sudden changes. 'Ramp up' suggests gradual growth.",
+        "etymology": "From a ramp, a slope that rises step by step.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "tackle",
+        "level": "basic",
+        "pos": "verb",
+        "ipa": "/ˈtækəl/",
+        "syllables": "tack-le",
+        "meaning": "To start dealing with a difficult problem or task with effort.",
+        "examples": [
+          "In my last role, I tackled our flaky test suite and cut failures by 80%.",
+          "Let's tackle the laundry before dinner."
+        ],
+        "synonyms": [
+          "address",
+          "handle",
+          "take on"
+        ],
+        "commonMistake": "Saying 'tackle with a problem'. Say 'tackle a problem'.",
+        "etymology": "Middle English 'takel', equipment; later the sports sense of grabbing an opponent.",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "outage",
+        "level": "basic",
+        "pos": "noun",
+        "ipa": "/ˈaʊtɪdʒ/",
+        "syllables": "out-age",
+        "meaning": "A period when a service or system is not working.",
+        "examples": [
+          "The database outage lasted forty minutes and affected all EU users.",
+          "There was a power outage in our street last night."
+        ],
+        "synonyms": [
+          "downtime",
+          "service disruption",
+          "blackout"
+        ],
+        "commonMistake": "Confusing it with 'outrage', which means strong anger.",
+        "etymology": "From 'out' + '-age', a state of being out of service.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "fall through",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/fɔːl θruː/",
+        "syllables": "fall through",
+        "meaning": "To fail to happen as planned.",
+        "examples": [
+          "The partnership fell through, so we need a new integration plan.",
+          "Our weekend plans fell through because of the rain."
+        ],
+        "synonyms": [
+          "collapse",
+          "fall apart",
+          "come to nothing"
+        ],
+        "commonMistake": "Mixing it up with 'follow through', which means to complete what you started.",
+        "etymology": "Image of something dropping through a gap and being lost.",
+        "tier": "everyday words an educated speaker uses but learners often miss"
+      },
+      {
+        "word": "on the fence",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ɒn ðə fens/",
+        "syllables": "on the fence",
+        "meaning": "Unable to decide between two options.",
+        "examples": [
+          "I'm still on the fence about using GraphQL versus REST here.",
+          "She's on the fence about moving to a new city."
+        ],
+        "synonyms": [
+          "undecided",
+          "torn",
+          "uncertain"
+        ],
+        "commonMistake": "Saying 'on a fence'. The fixed phrase is 'on the fence'.",
+        "etymology": "Image of sitting on a fence between two fields, not choosing either side.",
+        "tier": "everyday words an educated speaker uses but learners often miss"
+      },
+      {
+        "word": "roll out",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/roʊl aʊt/",
+        "syllables": "roll out",
+        "meaning": "To release something to users, often step by step.",
+        "examples": [
+          "We'll roll out the new checkout to 10% of users first.",
+          "The city is rolling out new bike lanes this year."
+        ],
+        "synonyms": [
+          "launch",
+          "release",
+          "deploy"
+        ],
+        "commonMistake": "Spelling. The verb is two words ('roll out'); the noun is one word ('rollout').",
+        "etymology": "From rolling out a carpet or product to present it.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "drive",
+        "level": "basic",
+        "pos": "verb",
+        "ipa": "/draɪv/",
+        "syllables": "drive",
+        "meaning": "To lead something and push it forward to a result.",
+        "examples": [
+          "I drove the effort to move our services to Kubernetes.",
+          "Her curiosity drives her to keep learning."
+        ],
+        "synonyms": [
+          "lead",
+          "push forward",
+          "champion"
+        ],
+        "commonMistake": "Using vague 'helped with' in interviews when you actually drove the work. Use 'drove' when you led it.",
+        "etymology": "Old English 'drīfan', to push or urge forward.",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "sync",
+        "level": "basic",
+        "pos": "noun/verb",
+        "ipa": "/sɪŋk/",
+        "syllables": "sync",
+        "meaning": "A short meeting to share updates; also to make things match.",
+        "examples": [
+          "Let's have a quick sync tomorrow to check on the release.",
+          "My phone didn't sync my calendar this morning."
+        ],
+        "synonyms": [
+          "check-in",
+          "catch-up",
+          "align"
+        ],
+        "commonMistake": "Spelling it 'sink', which is a different word.",
+        "etymology": "Short for 'synchronize', from Greek 'syn' (together) + 'chronos' (time).",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "stakeholder",
+        "level": "intermediate",
+        "pos": "noun",
+        "ipa": "/ˈsteɪkhoʊldər/",
+        "syllables": "stake-hold-er",
+        "meaning": "A person or group who is affected by a project or has an interest in it.",
+        "examples": [
+          "Before changing the API, we need to inform all stakeholders, including the partner teams.",
+          "Parents are key stakeholders in school decisions."
+        ],
+        "synonyms": [
+          "interested party",
+          "partner",
+          "decision-maker"
+        ],
+        "commonMistake": "Using it only for investors. In tech it includes users, managers and other teams.",
+        "etymology": "Originally a person who held the money (stakes) in a bet.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "de-risk",
+        "level": "intermediate",
+        "pos": "verb",
+        "ipa": "/diːˈrɪsk/",
+        "syllables": "de-risk",
+        "meaning": "To reduce the risk of something before or while doing it.",
+        "examples": [
+          "We de-risked the launch by shipping behind a feature flag first.",
+          "Building a small prototype helped de-risk the whole idea."
+        ],
+        "synonyms": [
+          "reduce risk",
+          "safeguard",
+          "hedge"
+        ],
+        "commonMistake": "Saying 'de-risk the risk'. You de-risk a plan, launch or project.",
+        "etymology": "Prefix 'de-' (remove) + 'risk'; modern business English.",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "iterate",
+        "level": "intermediate",
+        "pos": "verb",
+        "ipa": "/ˈɪtəreɪt/",
+        "syllables": "it-er-ate",
+        "meaning": "To improve something by repeating cycles of building, testing and changing.",
+        "examples": [
+          "We shipped a basic version and iterated on it based on user feedback.",
+          "Writers often iterate on a draft many times."
+        ],
+        "synonyms": [
+          "refine",
+          "rework",
+          "repeat"
+        ],
+        "commonMistake": "Saying 'iterate the design'. In the improving sense, 'iterate on the design' is more natural.",
+        "etymology": "Latin 'iterare', to do again.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "latency",
+        "level": "intermediate",
+        "pos": "noun",
+        "ipa": "/ˈleɪtənsi/",
+        "syllables": "la-ten-cy",
+        "meaning": "The delay between a request and the response.",
+        "examples": [
+          "Adding a cache cut our p99 latency from 800 ms to 120 ms.",
+          "Video calls feel awkward when there's high latency."
+        ],
+        "synonyms": [
+          "delay",
+          "lag",
+          "response time"
+        ],
+        "commonMistake": "Confusing it with throughput. Latency is how long one request takes; throughput is how many requests are handled per second.",
+        "etymology": "Latin 'latere', to lie hidden.",
+        "tier": "tech-adjacent English"
+      },
+      {
+        "word": "incremental",
+        "level": "intermediate",
+        "pos": "adj",
+        "ipa": "/ˌɪŋkrəˈmentəl/",
+        "syllables": "in-cre-men-tal",
+        "meaning": "Happening in small steps, one after another.",
+        "examples": [
+          "We chose an incremental migration instead of a risky big-bang rewrite.",
+          "Progress on my Spanish has been slow but incremental."
+        ],
+        "synonyms": [
+          "gradual",
+          "step-by-step",
+          "progressive"
+        ],
+        "commonMistake": "Using it to mean 'small and unimportant'. It describes the step-by-step process, not low value.",
+        "etymology": "Latin 'incrementum', growth or increase.",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      }
+    ],
+    "grammar": {
+      "topic": "Prepositions of time and place: in, on, at",
+      "minutes": 6,
+      "explanation": "Think of a funnel from big to small: IN (large or general), ON (medium or specific), AT (small or exact). TIME: use IN for months, years, seasons, centuries and long periods (in March, in 2025, in the morning). Use ON for days and dates (on Monday, on 15 July, on my birthday, on the weekend in US English). Use AT for exact times and short moments (at 3 pm, at noon, at night, at the moment, at the weekend in UK English). PLACE: use IN for enclosed spaces, cities and countries (in the office, in Berlin, in a meeting). Use ON for surfaces, lines and digital platforms (on the screen, on the second floor, on Slack, on the call). Use AT for specific points or locations (at the desk, at the entrance, at Google, at the conference). No preposition is needed before 'this', 'next', 'last', 'every', 'today', 'tomorrow' or 'yesterday'. Examples: 1) The release is scheduled for 10 am on Thursday. 2) I joined the company in 2022 and worked in the Berlin office. 3) Let's discuss it on the call at 4 pm. 4) The bug appears on the login page in Safari. 5) I'll present at the conference next week.",
+      "commonErrors": [
+        {
+          "wrong": "The meeting is in Monday.",
+          "right": "The meeting is on Monday.",
+          "why": "Days and dates take ON."
+        },
+        {
+          "wrong": "I'll send it at next week.",
+          "right": "I'll send it next week.",
+          "why": "No preposition is used before next, last, this or every."
+        },
+        {
+          "wrong": "I'm in the call right now.",
+          "right": "I'm on the call right now.",
+          "why": "Calls, platforms and channels take ON (on Zoom, on Slack, on the call)."
+        },
+        {
+          "wrong": "I work in Microsoft.",
+          "right": "I work at Microsoft.",
+          "why": "Use AT for a company as a workplace. IN is used for a department: I work in the platform team."
+        },
+        {
+          "wrong": "The deploy happens in 6 pm.",
+          "right": "The deploy happens at 6 pm.",
+          "why": "Exact clock times take AT."
+        }
+      ],
+      "exercises": [
+        {
+          "type": "fill-blank",
+          "prompt": "Our sprint review is ___ Friday ___ 11 am.",
+          "answer": "on, at",
+          "explanation": "ON goes with days and AT goes with exact times."
+        },
+        {
+          "type": "fill-blank",
+          "prompt": "I started learning Python ___ 2019, mostly ___ the evenings.",
+          "answer": "in, in",
+          "explanation": "Years and parts of the day (except night) take IN."
+        },
+        {
+          "type": "correct-the-sentence",
+          "prompt": "The error message shows in the dashboard at the top-right corner.",
+          "answer": "The error message shows on the dashboard in the top-right corner.",
+          "explanation": "Screens and pages are surfaces, so they take ON. For corners of a screen or page, use IN (in the top-right corner)."
+        },
+        {
+          "type": "correct-the-sentence",
+          "prompt": "Can we talk about it in tomorrow?",
+          "answer": "Can we talk about it tomorrow?",
+          "explanation": "No preposition is used before today, tomorrow or yesterday."
+        },
+        {
+          "type": "fill-blank",
+          "prompt": "I'm ___ a meeting right now, but I'll reply ___ Slack ___ the afternoon.",
+          "answer": "in, on, in",
+          "explanation": "Use IN a meeting, ON a platform, and IN the afternoon."
+        },
+        {
+          "type": "correct-the-sentence",
+          "prompt": "She presented her talk on the conference in night.",
+          "answer": "She presented her talk at the conference at night.",
+          "explanation": "Use AT for events treated as a point (at the conference). 'At night' is a fixed expression."
+        }
+      ]
+    },
+    "speaking": [
+      {
+        "context": "meeting",
+        "prompt": "Give a 1-minute stand-up update: what you did yesterday, what you'll do today, and any blockers. Mention at least two specific times or days and one platform (Jira, Slack, GitHub).",
+        "tips": [
+          "Keep the order clear: yesterday, today, blockers.",
+          "Check each time phrase: on + day, at + exact time, and no preposition before today or tomorrow."
+        ],
+        "usefulPhrases": [
+          "Yesterday I wrapped up...",
+          "I'm planning to finish it by Thursday at noon.",
+          "I'm blocked on... and I've raised it on Slack."
+        ]
+      },
+      {
+        "context": "meeting",
+        "prompt": "Propose a new release schedule to your team. Explain when code freeze, QA and deployment will happen and why.",
+        "tips": [
+          "Start with the recommendation, then give the reasons.",
+          "Repeat key dates clearly so nobody misses them."
+        ],
+        "usefulPhrases": [
+          "I'd like to propose that we...",
+          "Code freeze would be on Wednesday at 6 pm.",
+          "Does that timeline work for everyone?"
+        ]
+      },
+      {
+        "context": "interview",
+        "prompt": "Answer: 'Tell me about yourself.' Cover where you studied, where you've worked, and what you're focusing on now, in under 2 minutes.",
+        "tips": [
+          "Use 'at' for companies and 'in' for cities and years (at Infosys, in Bangalore, in 2021).",
+          "Finish with why you're interested in this role."
+        ],
+        "usefulPhrases": [
+          "I graduated in... with a degree in...",
+          "Currently I work at... as a...",
+          "What excites me about this role is..."
+        ]
+      },
+      {
+        "context": "interview",
+        "prompt": "Explain how the internet delivers a web page (DNS, request, server, response) to a non-technical interviewer, as simply as possible.",
+        "tips": [
+          "Use one everyday analogy, such as a phone book or a postal address.",
+          "Avoid jargon, or define it in one short phrase."
+        ],
+        "usefulPhrases": [
+          "In simple terms...",
+          "Think of it like...",
+          "So, to sum up..."
+        ]
+      },
+      {
+        "context": "daily",
+        "prompt": "Describe your typical weekday routine to a new colleague over coffee: when you start, where you work, and what you do in the evenings.",
+        "tips": [
+          "Practise 'in the morning', 'at night' and 'on weekdays' naturally.",
+          "Add one personal detail to sound friendly rather than scripted."
+        ],
+        "usefulPhrases": [
+          "I usually start at around 9.",
+          "On Fridays I work from home.",
+          "In the evenings I like to..."
+        ]
+      },
+      {
+        "context": "daily",
+        "prompt": "Tell a friend about a trip or event you're planning: where it is, when it happens and what you'll do there.",
+        "tips": [
+          "Use the future with 'going to' for plans.",
+          "Ask your listener a question at the end to keep the conversation going."
+        ],
+        "usefulPhrases": [
+          "I'm going to... in December.",
+          "We'll be staying at a place near...",
+          "Have you ever been there?"
+        ]
+      }
+    ],
+    "writing": [
+      {
+        "prompt": "Write a short Slack message (3-4 sentences) rescheduling a meeting. Include the old time, the new time, the day, and where it will happen (room or platform).",
+        "tip": "Check every time and place phrase: on + day, at + time, in + room, on + Zoom or Teams."
+      },
+      {
+        "prompt": "Write a 5-sentence 'About me' paragraph for your LinkedIn profile mentioning where and when you studied and worked.",
+        "tip": "Use 'at' for companies and universities as institutions, and 'in' for cities, countries and years."
+      }
+    ]
+  }
+}
