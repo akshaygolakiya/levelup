@@ -1,0 +1,1119 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "generatedAt": "2026-11-10T00:33:59.843Z",
+  "promptsVersion": "1.0.0",
+  "tech": {
+    "deepReads": [
+      {
+        "id": "e30ae3ebeb",
+        "tldr": "A Linux kernel bug in IPv4 checksum-offload validation let a guest VM control two bytes of an IPv4 header after the host had already trusted it, enabling both a firewall bypass and a 32-byte out-of-bounds memory read. Fly.io patched and rebooted its entire fleet on October 16, 2026, in a rollout that took 10 hours, and has since changed how it handles incident communications.",
+        "beforeYouRead": [
+          {
+            "term": "Checksum offload",
+            "explain": "Instead of computing a TCP/UDP checksum immediately, the kernel records metadata saying where the checksum should read from and write to. The checksum is only computed if it turns out to be needed, which saves CPU at high speeds."
+          },
+          {
+            "term": "virtio",
+            "explain": "A standard interface for virtual devices, such as network cards, in VMs. A guest's virtual NIC can pass checksum metadata to the host, which then treats the packet like any other offloaded packet."
+          },
+          {
+            "term": "XDP (eXpress Data Path)",
+            "explain": "A Linux mechanism for running packet-filtering programs very early in the receive path. Fly.io uses it for packet filters."
+          },
+          {
+            "term": "Out-of-bounds read",
+            "explain": "A bug where code reads memory beyond the buffer it is meant to read. This can leak whatever data sits next to that buffer."
+          },
+          {
+            "term": "IPv4 options",
+            "explain": "An optional, variable-length part of the IPv4 header. Its size is set by the header-length field, so changing that field changes how many bytes are treated as header."
+          }
+        ],
+        "keyIdeas": [
+          "The Linux kernel CVE team and pwn.ai announced the bug on the morning of October 15. Disclosure came with a detailed exploit writeup. Fly.io heard about it that night and, by the evening of October 16, had patched and rebooted its whole fleet, with the rollout taking 10 hours.",
+          "The root cause: the checks meant to reject bad guest-supplied checksum metadata were wrong for IPv4. An attacker points the checksum at a different header field, picks a message that produces the checksum value they want, and forces the host to compute the checksum in software. The host receives, parses and routes the packet first, then applies the checksum in the wrong place.",
+          "Hole 1 is a firewall bypass: a rewrite of the source or destination IP lands after the host has already applied routing and firewall rules. Hole 2 is an out-of-bounds read: rewriting the smallest IPv4 header length to the largest captures 32 bytes of adjacent memory as options on the outgoing packet. That memory can contain host packets, kernel data structures, or a neighbouring VM's packets.",
+          "Detection is hard. Firewall-bypass packets can be perfectly well-formed, and out-of-bounds-read packets probably carry a bad header checksum, but by the time that is visible it is too late. Existing XDP rules run before the rewrite happens. Disabling checksum offload on the host would itself need a reboot, so the team chose to reboot straight into a patched kernel.",
+          "Each host takes about 15–20 minutes to reboot, and every Fly Machine on it is down for that time. Because placement scatters Machines randomly, rebooting several hosts at once would take down every Machine of some apps. The team planned around Managed Postgres, splitting each region into waves so that no MPG cluster had both nodes in the same wave. The largest region, iad, needed 17 waves.",
+          "Most hosts came back within the announced estimate, but some did not. A few booted without essential software and needed reinstalls, others got stuck in BIOS, and a four-node chassis in gru lost its power supply mid-incident with no spare on site. Machines on those hosts stayed down until they were restored on October 20. No Machines or customer data were lost.",
+          "At 16:22 UTC the status page posted an 'emergency maintenance' notice that did not mention security or name the CVE, and customers said this felt unacceptable. Fly.io chose this to avoid confirming that its hosts were vulnerable right now. After the post-mortem, the Head of Security revamped the incident communications plan: responsibility moved from the people in the incident channel to the exec team, who now have explicit instructions on who says what, where, and when."
+        ],
+        "seniorLens": "The real lesson is that 'strong hardware virtualization' depends on the host kernel's handling of guest-controlled metadata. Any field the guest supplies and the host acts on later is a time-of-check/time-of-use risk, and here the bytes were rewritten after the host had parsed, routed, and filtered the packet. Note the ordering problem for defenders: the XDP rules ran before the rewrite, so a control placed earlier in the pipeline could not see it. Two operational gaps stand out. First, because placement is random and reboots take 15–20 minutes, Fly.io planned its waves around Managed Postgres. The post describes no guarantees for other multi-Machine apps, and single-Machine apps went down regardless. Deliberately spreading an app's instances across hosts (anti-affinity) could have allowed safe wave planning for more apps. Second, the reboot exposed latent fleet problems: hosts missing essential software, hosts stuck in BIOS, and a site with no spare power supply. Regularly rehearsed fleet-wide reboots might have surfaced these before an emergency. 'No evidence this occurred' is limited assurance when the authors also say the exploit is hard to detect, which is why they advise rotating any credentials sent unencrypted between October 15 and 17. The comms trade-off is genuine: the bug was public with a detailed exploit writeup, so confirming 'we are vulnerable right now' could have helped attackers. But saying only 'maintenance' cost trust, and the fix was organisational (exec ownership with pre-set instructions) rather than technical.",
+        "whyItMatters": "Even hardware virtualization, the strongest isolation boundary available, leaked data for about a day and a half because the host trusted guest-controlled metadata. When a bug is disclosed with a detailed exploit writeup, how quickly you can patch, reboot, and rotate credentials limits your exposure.",
+        "forYou": "Encrypt traffic between your own services even on a private network, so a host-level leak exposes nothing usable. Know where every credential lives and rehearse rotating it. Give agents scoped, short-lived credentials, and treat what they read as hostile. Don't put an agent, its secrets, and your production data in the same place on the assumption that the boundary will hold. Running more than one instance of anything important, across separate hosts, also matters, because single-Machine apps went down during the reboots no matter what. Studying this bug is a good way to learn how kernel networking works: offload metadata, header parsing order, and where packet filters sit in the pipeline.",
+        "questions": [
+          "Why couldn't Fly.io's existing XDP rules block the exploit, and why didn't they simply disable checksum offload?",
+          "How many bytes of adjacent memory could the out-of-bounds read capture, and what kinds of data might those bytes contain?"
+        ],
+        "tags": [
+          "security",
+          "linux-kernel",
+          "incident-response",
+          "virtualization"
+        ],
+        "verifyNotes": "Detection 'impractical' changed to 'hard', with the bad-checksum detail added; the Oct 20 outage now covers all failed hosts, not only gru; 'drew customer anger' replaced with the source wording and the comms rationale added; 'only redundancy they could plan around' softened to 'planned around MPG'; removed the unsupported claim that hosts rarely reboot; hedged speculative counterfactuals; whyItMatters now grounded in the 'day and a half' figure; forYou aligned with the source's advice list.",
+        "kind": "deep",
+        "title": "Well, That Wasn't Fun: October 16 '26",
+        "source": "Fly.io Blog",
+        "url": "https://fly.io/blog/well-that-wasnt-fun/",
+        "track": "cloud",
+        "publishedAt": "2026-11-06T00:00:00.000Z",
+        "minutes": 10,
+        "whySelected": "A first-hand incident write-up from a cloud provider that patched and rebooted its fleet in a day, useful for learning fleet-wide operations under pressure."
+      },
+      {
+        "id": "8d1e1cb567",
+        "tldr": "Cloud databases on network-attached storage like EBS pay a network round trip on every disk operation, including read cache misses. Locally attached NVMe removes that hop, and PlanetScale Metal makes it durable with replicas in separate AZs, at least one of which must acknowledge each commit.",
+        "beforeYouRead": [
+          {
+            "term": "Network-attached vs locally attached storage",
+            "explain": "Network-attached storage is a disk on a separate server reached over the network, such as AWS EBS. Locally attached storage is a disk inside the same machine as the CPU, such as local NVMe, with no network hop."
+          },
+          {
+            "term": "IOPS",
+            "explain": "Input/Output Operations Per Second, the rate of disk reads and writes a volume can sustain. On EBS it is limited, defaulting to 3,000, and higher limits can be provisioned."
+          },
+          {
+            "term": "Availability zone (AZ)",
+            "explain": "An isolated failure domain within a cloud region. EBS replicates data within one AZ, so the failure of a whole zone can mean data unavailability or loss."
+          },
+          {
+            "term": "Synchronous replica acknowledgement",
+            "explain": "The primary database only confirms a commit to the client after at least one replica acknowledges the write. This adds a network hop per commit in exchange for durability."
+          },
+          {
+            "term": "Cache hit ratio",
+            "explain": "The fraction of reads served from memory rather than from storage. A low ratio means frequent trips to disk."
+          }
+        ],
+        "keyIdeas": [
+          "History: early database servers such as Sun's SPARC servers had disks inside the chassis or in a cabinet next to it, connected by SCSI and later SAS. RAID was popularised in the late 1980s. SANs in the 1990s and early 2000s connected storage to compute over a network but were tremendously expensive.",
+          "EBS launched in 2008 on spinning disks. An HDD random read averages 10–20 ms, while a round trip inside a data centre is usually 1 ms or less, so disk speed mattered more than network speed.",
+          "In 2012, EBS began moving to SSDs, and disk operations got about 100x faster. Network latency became the biggest bottleneck, and AWS built custom hardware and a new network transfer protocol (SRD), which improved network latency.",
+          "On current-generation EC2 instances, a dedicated Nitro card turns every EBS read and write into a network request. EBS IOPS default to 3,000, a limit that keeps one noisy neighbour from flooding the network. Local NVMe has no such artificial cap.",
+          "Metal design: one primary and at least two replicas, each on its own VM with its own local NVMe drive, spread across distinct AZs. A commit must be acknowledged by at least one replica before the client gets an ack, which costs one network hop per commit. Reads on Metal never cross the network.",
+          "Failover promotes a replica immediately. On Vitess, queries are buffered during the switch. On Postgres, queries through PgBouncer are buffered and then directed to the new primary.",
+          "Cost comparison from their Postgres 17 vs 18 benchmarks (on-demand): an r7i with a 700 GB io2 volume provisioned for 16,000 IOPS cost $1,513.82/month. An i7i with a 1.8 TB local NVMe drive (about 300,000 IOPS) cost $551.15/month. $50 Metal (December 2025) starts at 1/8 vCPU, 1 GB RAM and 10 GB NVMe. In some cases, CPU usage has gone from 20–25% to 80% or more after moving to Metal."
+        ],
+        "seniorLens": "This is a vendor post, so read the trade-offs it skims past. First, the post admits that local storage 'lives and dies with compute' and is not automatically replicated, but it does not explain how a replacement node gets its data back or how long that takes, so the period of reduced redundancy after a node loss is unknown. Second, durability now comes from cross-AZ commit acknowledgement. Every commit therefore pays a round trip to another AZ, and because only 'at least one replica' must ack, losing the primary together with the replica that acknowledged is the remaining risk. Third, the post calls local storage size 'rigid' and then says Metal storage can be configured in different sizes, without explaining how resizing works in practice. Fourth, the cost comparison uses different instance families with different storage sizes, and the EBS side is provisioned for 16,000 IOPS, well above the 3,000 default, so treat it as directional rather than apples-to-apples. The diagnostic advice is the most useful part. If most of your reads fit in RAM and writes are low, the network hop barely matters. Frequent cache misses, hitting EBS IOPS limits, or low CPU combined with high latency all point to storage-bound workloads. Measure those before migrating anything.",
+        "whyItMatters": "Once disks became fast, the network hop between database compute and its storage became the biggest bottleneck. The choice between network-attached and local storage affects latency, IOPS ceilings, cost, and how durability and failover are handled.",
+        "forYou": "Before you scale up instances, check your cache hit ratio, your IOPS usage against the EBS limit, and whether CPU is low while latency is high. If most of your reads fit in RAM and writes are low, network-attached storage may be fine as it is. Also learn the durability model behind local disks (replicas in separate AZs, commit acknowledgement, failover buffering through Vitess or PgBouncer), because the same pattern is useful whenever you give up managed storage durability in exchange for speed.",
+        "questions": [
+          "Why did moving EBS from HDDs to SSDs make network latency the main bottleneck? Give the latency figures the article cites.",
+          "How does PlanetScale Metal keep data durable on local NVMe, and how many network hops does a commit incur compared with an EBS-backed read cache miss?"
+        ],
+        "tags": [
+          "databases",
+          "storage",
+          "aws",
+          "performance"
+        ],
+        "verifyNotes": "tldr now says 'at least one' replica acks each commit; CPU 20–25%→80% marked 'in some cases'; added benchmark context (Postgres 17 vs 18, on-demand); removed the unsupported 'rebuild from a peer' and 'move to differently sized nodes' claims and the 'io2 is the expensive tier' claim; whyItMatters reworded to the source's network-bottleneck framing; replaced the unsupported 'add memory' advice with the source's RAM guidance; minor wording fixes (SANs, SRD, IOPS definition).",
+        "kind": "deep",
+        "title": "The hidden latency inside your database",
+        "source": "PlanetScale",
+        "url": "https://planetscale.com/blog/the-hidden-latency-inside-your-database",
+        "track": "databases",
+        "publishedAt": "2026-11-03T00:00:00.000Z",
+        "minutes": 9,
+        "whySelected": "Explains where storage latency hides inside a database and the trade-off between network-attached and local disks, likely with real latency numbers."
+      },
+      {
+        "id": "3f453d9910",
+        "tldr": "Reflex is Shopify's MVVM-based mobile architecture: all non-UI logic lives in a headless Core module, and each screen's ViewModel is exposed as a JSON contract (name, state, actions) that a CLI and agents can drive without a simulator or emulator. Swift and Kotlin code is written separately per platform, but one behaviour test file runs against both platforms to keep them in sync.",
+        "beforeYouRead": [
+          {
+            "term": "MVVM",
+            "explain": "Model-View-ViewModel. The View only renders and forwards user input, and a ViewModel holds the screen's state and logic. Reflex goes further: the View may only read state and call send(action:)."
+          },
+          {
+            "term": "Elm architecture / reducer",
+            "explain": "A pattern where actions come in, a single update(state, message) function computes the new state, and state goes out. Having one place where state changes makes behaviour predictable and easy to drive from outside."
+          },
+          {
+            "term": "Headless execution",
+            "explain": "Running an app's logic without rendering any UI. Here that means the Swift core runs on macOS and the Kotlin core runs on a plain JVM, with no simulator or emulator."
+          },
+          {
+            "term": "Dependency inversion",
+            "explain": "Core declares protocols for what it needs (network, Keychain, biometrics) and receives implementations through its constructor. The phone app passes in real services, and the CLI passes in fixtures. Reflex does this with no DI framework."
+          },
+          {
+            "term": "Grey box testing",
+            "explain": "Tests that see neither pixels nor internals, only an intermediate interface. In Reflex that interface is the ViewModel's state and the actions it accepts."
+          }
+        ],
+        "keyIdeas": [
+          "Four pillars: a Core module with no UI or device-dependent code, a strict Elm-style ViewModel contract, ViewModel introspection as JSON (name, state, actions), and a platform-agnostic CLI with just two commands: `ls` (shows the screen name, state JSON and available actions) and `do Action [json]`.",
+          "Guiding principle: \"share the test, not the code\". Swift and Kotlin each use their own UI toolkit and concurrency model with no cross-platform layer. Every behaviour test runs against both platforms, and a PR cannot merge if it passes on only one.",
+          "Navigation lives in Core as state changes on navigators (Tab, Push, Modal). The CLI can therefore walk the whole app, including deep links, without creating a single view.",
+          "1,700+ behaviour tests finish in about four minutes on CI on both platforms. Nothing renders, so an action is a function call followed by a JSON read, but the article names headless execution as the bigger reason for the speed.",
+          "Introspection nodes list every action every time with no conditionals. Whether Decrement does anything at zero stock is decided in update. The @IntrospectionInput macro generates JSON schemas so malformed payloads are rejected before they reach the ViewModel. On Android the node is a separate class because Kotlin extensions cannot make a type implement an interface.",
+          "Transport is newline-delimited JSON over stdin/stdout for the headless core, or a small socket server for real builds. The socket server is compiled out of release builds.",
+          "Behaviour sessions block every HTTP request and fail the test if one is attempted, even if the app recovered. The result is no I/O and no flakiness, at the cost of large fixtures: a single journey can carry a dozen GraphQL responses."
+        ],
+        "seniorLens": "The core trade-off is deliberate duplication. Shopify accepts writing every ViewModel twice, on the bet that agents make the second implementation cheap and that a bridge layer would cost more in maintenance, hidden platform behaviour and two-step upgrades. Parity then depends entirely on the shared test suite. Anything the suite does not express can diverge silently between platforms.\n\nThe suite deliberately does not see pixels, so view-binding and rendering bugs fall outside the behaviour layer. In the CLI, real platform services are replaced by fixtures. The only tests that drive real builds are a thin top layer of live integration journeys and a performance suite, plus a few cross-platform end-to-end flows. The article does not say how much of the real platform integration surface these cover.\n\nFixtures are acknowledged as large and tedious. Every network call needs one, so the risk is fixtures drifting from what the real backend returns. The architecture also only holds if Core stays free of platform imports, which the article calls the hard part for humans.\n\nTwo good design calls stand out. The debug socket is compiled out of release builds, so no remote-control surface ships. The 'no conditionals in nodes' rule keeps business logic in one place, which stops the test interface from becoming a second, divergent source of truth.\n\nThe same contract also powers Sidekick inside the app. That is a large reuse win, but it also means the introspection surface is effectively a product API, not just a test hook. Note that the provided text is truncated, so any further trade-offs the article covers are not available here.",
+        "whyItMatters": "It shows a concrete way to make a mobile app fast to verify for agents: test against the ViewModel contract instead of a simulator. It also enforces parity between two native codebases through tests rather than shared code.",
+        "forYou": "You can apply the same ideas in a web or mobile codebase. Keep logic in a UI-free module. Give each screen a single reducer as the only place state changes. Inject side-effecting services through constructors so tests pass fixtures instead of patching mocks. Then test user journeys against state and actions rather than through a browser or emulator. Also try the \"if a user can see it, it's in state; if a user can do it, it's in actions\" rule as a design check on your own components.",
+        "questions": [
+          "What are the four parts of a Reflex introspection node, and why must a node never contain an if statement?",
+          "How does Reflex enforce zero network access in behaviour tests, and what cost does that impose?"
+        ],
+        "tags": [
+          "mobile",
+          "testing",
+          "architecture",
+          "ai-agents"
+        ],
+        "verifyNotes": "Shortened tldr from 3 sentences to 2 and added that the contract includes the screen name. Corrected the test-speed claim: the source names headless execution, not the absence of rendering, as the bigger reason. In seniorLens, replaced the unsupported claim that the top test layer is assigned real-integration coverage with what the source actually says (live journeys and a performance suite drive real builds, plus a few E2E flows).",
+        "kind": "deep",
+        "title": "Reflex: an architecture for building mobile apps with agents",
+        "source": "Shopify Engineering",
+        "url": "https://shopify.engineering/reflex",
+        "track": "systems",
+        "publishedAt": "2026-11-05T15:41:40.000Z",
+        "minutes": 18,
+        "whySelected": "A mobile architecture that lets agents test app behaviour without an emulator and keeps iOS and Android in sync with one test suite."
+      },
+      {
+        "id": "e1491c4239",
+        "tldr": "F3 Lightning, a layer built on top of F3, lets each of Meta's 20,000+ ads ML features be compiled, validated, deployed and rolled back independently, instead of shipping as one merged graph where a single bad definition blocked the whole release. It recovers the merged graph's efficiency through one compiler change plus three startup optimizations, and comparable extraction features now reach production ~3.6x faster with no increase in infrastructure compute cost.",
+        "beforeYouRead": [
+          {
+            "term": "Feature (ML)",
+            "explain": "A computed input value for a model, such as a seven-day click count. A feature-serving system reads stored signals and filters, aggregates and combines them before the model makes a prediction."
+          },
+          {
+            "term": "DAG",
+            "explain": "Directed acyclic graph. Here each node is one unit of work (read, filter, aggregate), and each edge means one computation depends on another's result."
+          },
+          {
+            "term": "Topological sort",
+            "explain": "An ordering of a DAG's nodes in which every node comes after all the nodes it depends on. Following that order guarantees inputs are ready before they are used."
+          },
+          {
+            "term": "Cache miss",
+            "explain": "When the CPU needs data that is not already in its fast on-chip cache and must fetch it from slower memory. Data scattered across many allocations causes more misses than data laid out contiguously."
+          },
+          {
+            "term": "Release unit",
+            "explain": "The smallest artifact that ships or rolls back together. If many components share one release unit, one failure blocks all of them."
+          }
+        ],
+        "keyIdeas": [
+          "F3, first presented at AI @ Scale 2020, compiles each feature into a small graph and merges the graphs of every feature a service uses into one merged graph, so shared operations run once per request. It began with a few hundred features and now serves more than 20,000, and a single ads request can need more than 20,000 features.",
+          "Because the merged graph was also the release unit, one malformed definition blocked every feature in it. Expensive model-related tests for features that live models already consume ran in a later release stage, and every other feature had to wait for them.",
+          "F3 Lightning compiles each feature into a self-contained configuration that carries all the nodes it needs. Releases go through a priority queue ordered by impact and risk: features no model consumes yet can ship quickly on standard validation, and changes to features live models read get extra testing first.",
+          "Early per-feature prototypes used substantially more CPU because shared work was repeated. Step 1, a compiler prerequisite, is stable identifiers derived from the operation, its parameters and its inputs' identifiers, with order-insensitive inputs put in a standard order. Aggregations also include their time window and grouping keys.",
+          "Step 2 is a single execution plan built at startup with a topological sort. Nodes with the same identifier are deduplicated, and the plan is flattened into an ordered list so each request runs one forward pass. If a computation fails or its input is unavailable, everything downstream is marked not ready and skipped, while independent branches keep running.",
+          "Step 3 is one shared memory buffer per request instead of per-feature containers, which restores locality. Readiness is tracked in a separate vector because an empty list is a valid result. Lists and maps are shared by reference, so a computation used by 20 features is computed and stored once, while scalars are copied.",
+          "Step 4 is dense index mapping: each unique identifier gets a consecutive integer slot at startup. Reading a result becomes a direct array index, with no hashing or lookup table on the request path."
+        ],
+        "seniorLens": "The main lesson is to separate the deployment boundary from the execution boundary. Once one artifact decided both how features run and when they ship, efficiency and release speed became a forced trade-off.\n\nThe least obvious result is that deduplication alone was not enough. CPU stayed above traditional F3 until memory layout and copy count were fixed. Algorithmic work counts are only part of real cost; locality matters too.\n\nSeveral risks follow:\n- Correctness of sharing rests entirely on identifier derivation. If a parameter that affects semantics is ever left out of the identifier, two different computations would collapse into one and silently serve wrong values to multiple features. The article does not describe how that is guarded against.\n- Sharing results by reference is justified by per-request buffer lifetime and execution order. It also implicitly requires that consumers never mutate shared lists or maps, which the article does not discuss.\n- Moving work to startup shifts cost into startup time and memory. The article gives no startup-time numbers and does not say how newly released features reach running processes (restart or reload).\n- The 'not ready' propagation contains failures, but the article does not say what models receive for features that are not ready.\n- The ~3.6x figure applies to 'comparable extraction features', so it is not a claim about every feature type.",
+        "whyItMatters": "It is a clear, reusable pattern for any system that merges many independently authored units for efficiency (feature stores, query engines, build systems). You can release units individually and still get shared execution by doing the invariant work once at startup.",
+        "forYou": "Watch for the same coupling in your own systems, for example a monorepo deploy or a single config bundle where one bad entry blocks everything, and ask whether the release unit can be split from the runtime unit. You can also borrow the techniques directly: content-derived identifiers for deduplication, precomputing anything identical across requests at startup, and replacing hash lookups on hot paths with array indexes. Finally, when profiling shows no duplicated work but CPU is still high, check memory layout and copy count.",
+        "questions": [
+          "Why could F3 Lightning not use node numbers to detect shared computations, and what is each stable identifier derived from instead?",
+          "After deduplication removed all repeated computation, why was CPU still higher than traditional F3, and how was that fixed?"
+        ],
+        "tags": [
+          "machine-learning",
+          "performance",
+          "release-engineering",
+          "system-design"
+        ],
+        "verifyNotes": "tldr: corrected 'four optimizations at service startup' to one compiler change plus three startup optimizations, scoped ~3.6x to comparable extraction features, and noted that Lightning is built on top of F3. Feature definition: replaced 'at request time' with the source's 'before the model makes a prediction'. keyIdeas: the merged graph covers the features a given service uses, not every feature. Step 1 is labelled a compiler prerequisite. 'Ship on standard validation' softened to 'can ship quickly'. Added 'or its input is unavailable' to the failure-propagation trigger.",
+        "kind": "deep",
+        "title": "F3 Lightning: How Meta Accelerates Ads ML Features to Production at Scale",
+        "source": "Meta Engineering",
+        "url": "https://engineering.fb.com/2026/11/03/ml-applications/f3-lightning-how-meta-accelerates-ads-ml-features-to-production/",
+        "track": "systems",
+        "publishedAt": "2026-11-03T17:00:35.000Z",
+        "minutes": 12,
+        "whySelected": "Shows how Meta authors, compiles and serves ML features for ads ranking at scale, covering data-platform and serving trade-offs."
+      }
+    ],
+    "quickReads": [
+      {
+        "id": "aed4d9c60c",
+        "tldr": "Go 1.27 makes the new encoding/json/v2 and encoding/json/jsontext packages stable and generally available as a new major version alongside encoding/json (v1), whose problems were practically impossible to fix within the Go 1 compatibility promise. v2 addresses v1's behavioral flaws, API deficiencies and performance limitations.",
+        "keyIdea": "v1's problems are inherent consequences of its existing API. Examples include accepting invalid UTF-8 and duplicate member names, case-insensitive field matching, and marshaling nil slices and maps as null. MarshalJSON forces a []byte allocation plus validation and reformatting, UnmarshalJSON forces a double parse, and Encoder/Decoder buffer the entire JSON value in memory. The fix therefore had to be a separate v2 namespace, with syntactic functionality (encode/decode, in jsontext) split from semantic functionality (marshal/unmarshal, in v2).",
+        "whyItMatters": "Accepting duplicate member names has been exploited before (CVE-2017-12635), and the common json.NewDecoder(r).Decode(v) pattern fails to reject trailing junk, so v1's defaults pose correctness and security risks.",
+        "tags": [
+          "go",
+          "json",
+          "api-design"
+        ],
+        "verifyNotes": "Changed 'replacing encoding/json (v1)' to 'alongside', because the source does not say v1 is replaced. Changed 'could not be fixed' to 'practically impossible to fix'. Reworded the CVE claim to match the source. Removed the unsupported 'in real Go services'.",
+        "kind": "quick",
+        "title": "A new Go API for JSON",
+        "source": "Go Blog",
+        "url": "https://go.dev/blog/jsonv2",
+        "track": "backend",
+        "publishedAt": "2026-11-04T00:00:00.000Z",
+        "minutes": 18,
+        "whySelected": "Covers the official redesign of Go's JSON packages (encoding/json/v2 and jsontext), with API and behaviour changes backend engineers will meet."
+      },
+      {
+        "id": "dab63348f0",
+        "tldr": "Privacy Pass, which issues unlinkable tokens to rate-limit clients without CAPTCHAs or fingerprinting, still relies on RSA and elliptic curves, so a quantum attacker could forge tokens, though it could not link a token's redemption to its issuance because privacy is unconditional. Cloudflare explores a post-quantum path for MOLE, a next-generation design that hides which trusted issuer endorsed a client, made possible by a recent breakthrough in blind signatures.",
+        "keyIdea": "Quantum computers threaten the unforgeability of Privacy Pass tokens, not their privacy. The main migration challenge is size: ML-DSA-44 signatures are 2,420 bytes versus 64 bytes for ECDSA-P256, and with no drop-in replacements expected soon, systems must be re-engineered to bear the higher cost.",
+        "whyItMatters": "Post-quantum migration reaches beyond TLS into anti-abuse and private authentication systems, where much larger primitives force system re-engineering.",
+        "tags": [
+          "post-quantum",
+          "cryptography",
+          "privacy"
+        ],
+        "verifyNotes": "clean",
+        "kind": "quick",
+        "title": "The post-quantum future of web privacy",
+        "source": "Cloudflare Blog",
+        "url": "https://blog.cloudflare.com/vole-mole/",
+        "track": "systems",
+        "publishedAt": "2026-11-06T14:00:00.000Z",
+        "minutes": 22,
+        "whySelected": "Explains how quantum computers threaten privacy protocols such as Privacy Pass and what post-quantum migration costs."
+      },
+      {
+        "id": "c064ec7bcb",
+        "tldr": "Google and industry partners dismantled XCPE, a botnet of more than 1.3 million Android TV set-top boxes whose malware GTIG and other experts concluded was included by the manufacturer Videostrong; the malware made users' IP addresses available for resale by residential proxy services and conducted ad fraud. GTIG estimates the takedown should sever access to at least 10 million additional compromised devices, and Synthient's founder called the 1.3 million figure 'highly conservative'.",
+        "keyIdea": "The supply chain was the attack vector. The device maker loaded the malware immediately after a device's first boot, sold access to criminal affiliates and loaded those affiliates' malware modules. Infected devices routinely downloaded SDKs from residential proxy providers such as AppSalt/Honeygain and NetNut.",
+        "whyItMatters": "Residential proxy services are a major source of unwanted and often malicious traffic, including account takeover, ad fraud and mass content scraping for AI projects, and a manufacturer-backdoored supply chain fed them devices at scale.",
+        "tags": [
+          "security",
+          "botnets",
+          "iot"
+        ],
+        "verifyNotes": "Clarified that the 'GTIG attributes' claim is a conclusion by GTIG and other experts. Corrected 'rented users' IP addresses' to 'made them available for resale'. Corrected 'expected to' to 'GTIG estimates'. Removed the unsupported claim that affiliates resold IPs through the SDKs; the source says only that infected devices downloaded these SDKs. Changed 'mass AI scraping' to 'mass content scraping for AI projects'. Removed the unsupported claim that residential IPs are not a trustworthy signal.",
+        "kind": "quick",
+        "title": "Tech Firms Dismantle Botnet That Turned 1.3M TV Boxes Into Proxies",
+        "source": "Krebs on Security",
+        "url": "https://krebsonsecurity.com/2026/11/tech-firms-dismantle-botnet-that-turned-1-3m-tv-boxes-into-proxies/",
+        "track": "security",
+        "publishedAt": "2026-11-03T02:24:31.000Z",
+        "minutes": 7,
+        "whySelected": "A concrete botnet takedown of 1.3M Android TV boxes, showing how supply-chain malware feeds residential proxy networks."
+      },
+      {
+        "id": "bdf036870c",
+        "tldr": "Docker Desktop (originally Docker for Mac) has used microVM technology since 2016, when Docker acquired Unikernel Systems and used MirageOS unikernel libraries to build hyperkit, an embedded 'library VMM' with the vpnkit network stack and a minimal LinuxKit-based kernel and root filesystem. That VMM has evolved into Docker VMM, and the Docker microVM tech now underpins both Docker Desktop and Docker Sandboxes, which runs each sandbox in its own isolated microVM.",
+        "keyIdea": "The original goal was to make Docker feel like a native app on Mac and Windows, not to add microVMs for their own sake. Treating the whole Linux kernel as untrusted behind a carefully limited, auditable host/VM interface allowed rootless operation on all platforms, meant even a Linux CVE does not matter, and made VPN interoperability easy.",
+        "whyItMatters": "MicroVM isolation has shipped in Docker Desktop since 2016, and through Docker Sandboxes it now provides strict isolation for running coding agents.",
+        "tags": [
+          "virtualization",
+          "docker",
+          "containers"
+        ],
+        "verifyNotes": "Clarified that the Docker VMM name refers to the evolved VMM code and that the microVM tech underpins both Desktop and Sandboxes. Noted the Docker for Mac origin. Added VPN interoperability. Replaced the unsupported 'mature technology in a mainstream developer tool' with the source-supported 'shipped since 2016'.",
+        "kind": "quick",
+        "title": "Docker has always used microVMs (well, since 2016)",
+        "source": "Lobsters",
+        "url": "https://dave.recoil.org/docker-has-always-used-microvms/",
+        "track": "general",
+        "publishedAt": "2026-11-09T22:29:01.000Z",
+        "minutes": 4,
+        "whySelected": "Corrects a common misconception about container isolation by showing that Docker has used microVMs since 2016."
+      },
+      {
+        "id": "d6a3cd5b83",
+        "tldr": "When one public function needs logic that another public function already contains, move the shared code into a private helper that both call, instead of having one public function call the other. The exception is 'shortcut' APIs, which should be built only from calls to other public functions.",
+        "keyIdea": "Reusing public functions internally creates tension between serving outside callers and serving internal needs. Public functions then grow optional parameters that users should never set, and this can happen after the original code sharing. A private helper can be reshaped cheaply and locally.",
+        "whyItMatters": "It keeps public APIs designed for their call sites, so internal reuse does not gradually degrade them.",
+        "tags": [
+          "api-design",
+          "refactoring",
+          "software-design"
+        ],
+        "verifyNotes": "clean",
+        "kind": "quick",
+        "title": "Avoid Public Functions Calling Other Public Functions",
+        "source": "matklad",
+        "url": "https://matklad.github.io/2026/10/29/pub-calls-pub.html",
+        "track": "design",
+        "publishedAt": "2026-10-29T00:00:00.000Z",
+        "minutes": 3,
+        "whySelected": "A small, practical API-design rule from a respected systems engineer that applies directly to everyday code structure."
+      },
+      {
+        "id": "82bb1360a0",
+        "tldr": "Imprint Engineering requires every pull request to include a verifications/{pr_num}.md file listing each step the AI harness took to verify the change and what it could not verify, and drafts cannot be marked ready until that file exists. A daily maintenance process uses these files and the ai-code-review accept/reject history to update feature maps, tools and review guidance, and each major code area (frontend, backend, data and native) typically wakes up to 4-6 pull requests to review.",
+        "keyIdea": "The verification pattern is not a new test mechanism but a chain-of-thought-style forcing function: making the harness explicitly document what it verified, or admit what it didn't, both improves self-driving and produces a running list of verification gaps that becomes your improvement roadmap.",
+        "whyItMatters": "The author has seen too many pull requests reach CI/CD with basic lint failures that could have been caught locally to believe harnesses always ran those checks. Requiring them to record their verification makes it explicit whether they did.",
+        "tags": [
+          "ai-agents",
+          "code-review",
+          "developer-workflow"
+        ],
+        "verifyNotes": "tldr: added 'typically' to the 4-6 PR figure and named the four code areas; replaced vague 'mines... tooling and guidance' with what the source describes (feature maps, tools, review guidance). whyItMatters: replaced the absolute 'cannot assume' with the author's actual observation.",
+        "kind": "quick",
+        "title": "Self-reinforcing quality / adopting verification pattern",
+        "source": "Will Larson",
+        "url": "https://lethain.com/adopting-verification-pattern/",
+        "track": "career",
+        "publishedAt": "2026-10-30T12:00:00.000Z",
+        "minutes": 5,
+        "whySelected": "A follow-up on engineering process that builds verification loops into the development cycle, moving past the already-served small-change pattern."
+      },
+      {
+        "id": "c353641c8e",
+        "tldr": "The author built tinylittleoffice.com, an office suite that stores data in the URL, with maybe twice the effort of a long newsletter post. It drew a couple hundred thousand visitors, maxed out the Cloudflare free plan but still cost $0 to host after he added a credit card, and launched in 21 languages, which he says shows that browser APIs like Web Crypto, WebAssembly, WebGL and Web Audio, built for large teams, are now practical for individuals.",
+        "keyIdea": "The browser has long been a powerful application platform; what has changed is that the cost for one person to use its vast, separate APIs is falling fast.",
+        "whyItMatters": "If you can test an idea from a web server for $0 after a couple of weeks, the high tax of building for app stores becomes harder to justify.",
+        "tags": [
+          "web-platform",
+          "browser-apis",
+          "indie-development"
+        ],
+        "verifyNotes": "tldr: added that traffic maxed out the Cloudflare free plan and that hosting still cost $0 after a credit card was added; hedged the effort estimate ('maybe'); merged into 2 sentences.",
+        "kind": "quick",
+        "title": "The Web Is More Than Enough",
+        "source": "Hacker News",
+        "url": "https://ftrain.com/aboard-the-web-is-more-than-enough",
+        "track": "general",
+        "publishedAt": "2026-11-08T19:48:32.000Z",
+        "minutes": 6,
+        "whySelected": "A well-discussed argument about how far plain web-platform features can go before frameworks are needed, useful for frontend architecture judgement."
+      },
+      {
+        "id": "2fab79d06b",
+        "tldr": "BenchUp is a free, MIT-licensed 3D modelling app written in Rust for woodworking and furniture design, with tools such as Push/Pull, snapping, dimensions, groups and components. It runs in a desktop browser with hardware acceleration and WebGPU or WebGL2 support, or as a native app for Windows x64, Apple Silicon macOS or Linux x64, and has no accounts or cloud storage.",
+        "keyIdea": "Work is autosaved locally in the browser on that device, so clearing browser data can delete it; download .ketchup files to keep projects. SketchUp (.skp) imports bring in geometry only, without textures, scenes or some other model features, and OBJ exports omit materials.",
+        "whyItMatters": "It shows a local-first, account-free design built on WebGPU/WebGL2 and Rust, along with the durability and interoperability trade-offs that design creates.",
+        "tags": [
+          "webgpu",
+          "rust",
+          "3d-modeling"
+        ],
+        "verifyNotes": "tldr: removed the unsupported 'SketchUp-style' label for the tools; added the hardware-acceleration requirement and the native build platforms (Windows x64, Apple Silicon macOS, Linux x64). keyIdea: added that 'some model features' are also unsupported on import.",
+        "kind": "quick",
+        "title": "KetchUp – Open-source SketchUp alternative built with Rust and WebGPU",
+        "source": "Hacker News",
+        "url": "https://ketchup3d.github.io/app/",
+        "track": "general",
+        "publishedAt": "2026-11-08T22:35:35.000Z",
+        "minutes": 3,
+        "whySelected": "A large open-source CAD app built with Rust and WebGPU, a good look at what browser and GPU graphics can now do."
+      },
+      {
+        "id": "c35a9b4517",
+        "tldr": "On-demand list prices for an H100 SXM 80GB range from $2.69/GPU-hour on RunPod Community to $12.29 on Azure ND96isr_H100_v5, a 4.57x spread, or $1,964 versus $8,972 for a month of continuous use. The gap is not pure margin: the Azure ND SKU includes 400 Gbps per GPU of Quantum-2 InfiniBand with GPU Direct RDMA, plus a datacentre SLA and enterprise compliance that RunPod Community, made up of third-party hosts, lacks.",
+        "keyIdea": "Compare GPU prices only within the same model and memory group, because SXM 80GB, PCIe 80GB and NVL 94GB are all sold as \"H100\" at different prices. Then match the tier to the workload: single-node fine-tuning pays for an interconnect it never uses, while 64-node training cannot run on the cheap tier.",
+        "whyItMatters": "At on-demand list prices, choosing a GPU provider based on the workload's real interconnect and reliability needs can change compute cost by more than 4x for the same chip. Reserved and spot pricing would narrow the gap.",
+        "tags": [
+          "gpu",
+          "cloud-pricing",
+          "ml-infrastructure"
+        ],
+        "verifyNotes": "tldr: specified 'list' prices and that RunPod Community is third-party hosts. whyItMatters: limited the 4x claim to on-demand list prices and noted the source's caveat that reserved and spot pricing narrow the gap.",
+        "kind": "quick",
+        "title": "The same H100 costs $2.69 or $12.29 an hour depending where you rent it",
+        "source": "Hacker News",
+        "url": "https://github.com/datareceipts/data-receipts/tree/main/109-gpu-pricing",
+        "track": "general",
+        "publishedAt": "2026-11-09T15:39:01.000Z",
+        "minutes": 2,
+        "whySelected": "Real numbers on GPU rental prices that vary by more than 4x for the same hardware, relevant to cloud cost decisions."
+      },
+      {
+        "id": "b1fb5a7055",
+        "tldr": "Researchers found a publicly reachable automaker admin tool whose JavaScript bundle held hardcoded API keys, the only authentication many of its APIs required. Combined with public registration lookups that turn a number plate into a VIN, this gave a chain from plate to VIN to subscriber GUID to the owner's email; a vendor JavaScript bundle also exposed OpenIDM admin credentials meant for staging, which the researchers suspected would work in production, so they aimed to mint consumer auth tokens that control a user's car.",
+        "keyIdea": "Client-side JavaScript bundles are public, so any API key or admin credential shipped in them is exposed. In the author's view, heavy WAF rules in front of a sensitive endpoint usually mean a bandage over an exposure the company knows is bad.",
+        "whyItMatters": "On a connected-car platform, a token-minting identity system plus admin APIs protected only by hardcoded keys on the public internet could turn ordinary web-app mistakes into remote control of vehicles.",
+        "tags": [
+          "security",
+          "api-security",
+          "identity"
+        ],
+        "verifyNotes": "tldr: corrected the attribution of the plate-to-VIN step to public state registration lookup sites, not the admin tool; noted that the admin tool's APIs relied only on the hardcoded keys; added that the staging credentials were only suspected to work in production; changed 'any such token' to a token controlling that user's car; merged into 2 sentences. keyIdea: attributed the WAF claim to the author. whyItMatters: replaced 'unauthenticated' with 'protected only by hardcoded keys', and changed 'can turn' and 'physical access' to 'could turn' and 'remote control', since the source excerpt ends before any outcome.",
+        "kind": "quick",
+        "title": "Unlocking any car from X brand in most of the world",
+        "source": "Hacker News",
+        "url": "https://shubs.io/unlocking-any-car-from-x-brand-in-most-of-the-world/",
+        "track": "general",
+        "publishedAt": "2026-11-09T00:10:50.000Z",
+        "minutes": 13,
+        "whySelected": "A high-impact automotive security disclosure that shows how connected-vehicle backends fail."
+      }
+    ],
+    "aiNews": [
+      {
+        "id": "f37b680abc",
+        "tldr": "Control Room is OpenAI's central service that tracks every research inference workload by job_id and halts model output within 35 seconds of a decision to stop a job. Inference engines ask Control Room for permission before fulfilling each request, so a stopped job is refused at the engine rather than relying on researcher-owned workload code.",
+        "keyIdea": "Put the kill switch in the inference layer, not the workload: engines check a central authorization service on each request (fail-closed if Control Room goes down), so buggy or frequently changing job code cannot bypass a stop, and the 35-second worst case comes from the authorization cache needed for traffic volume.",
+        "whyItMatters": "It shows how to build a reliable stop mechanism: enforce it at a chokepoint you control, make it fail closed, and be explicit that caching for throughput sets your worst-case reaction time.",
+        "tags": [
+          "ai-safety",
+          "system-design",
+          "infrastructure"
+        ],
+        "verifyNotes": "clean",
+        "kind": "ai",
+        "title": "Control Room: A central system to track and stop model workloads across our research infrastructure",
+        "source": "OpenAI News",
+        "url": "https://openai.com/index/control-room",
+        "track": "ai",
+        "publishedAt": "2026-11-09T13:00:00.000Z",
+        "minutes": 7,
+        "whySelected": "Describes OpenAI's infrastructure for tracking and stopping model workloads across research clusters, a rare look inside a frontier lab's ops."
+      },
+      {
+        "id": "60c5aa3759",
+        "tldr": "Faster LLM inference comes from using the GPU better, not only from buying more powerful GPUs. Batching raises throughput by sharing weight access across sequences, continuous batching reschedules between decode iterations so finished requests can be replaced when compute and memory allow, and prefix caching reuses the KV cache for already-processed prompt beginnings.",
+        "keyIdea": "Iteration-level scheduling (introduced by Orca; continuous batching is used by engines such as vLLM) lets the batch change after every decode step. This avoids static batching's waste, where finished requests' slots stay unfilled and new requests wait for the current batch. KV-cache memory and the scheduler's per-iteration sequence and token limits cap how many requests can join.",
+        "whyItMatters": "Batching mainly improves throughput (total tokens per second across requests) rather than per-request latency. Each active request's KV cache grows with sequence length, so a large batch of long conversations can exhaust GPU memory.",
+        "tags": [
+          "llm-inference",
+          "gpu",
+          "performance"
+        ],
+        "verifyNotes": "Changed 'replaced immediately' to 'replaced when compute and memory allow'; changed 'bigger' to 'more powerful' GPUs. Changed KV-cache memory from 'the main limit' to one limit alongside scheduler sequence/token limits. Removed the unsupported claim that throughput and latency trade off differently under each batching strategy; replaced it with the source's point that batching mainly improves throughput.",
+        "kind": "ai",
+        "title": "High Performance LLM Inference",
+        "source": "Neo Kim System Design",
+        "url": "https://newsletter.systemdesign.one/p/how-to-optimize-llm-inference",
+        "track": "systems",
+        "publishedAt": "2026-11-09T10:32:38.000Z",
+        "minutes": 16,
+        "whySelected": "A systems-level overview of the techniques that make LLM inference faster and cheaper, such as batching, KV cache and quantisation."
+      },
+      {
+        "id": "a3f795d16c",
+        "tldr": "Netflix's synopsis fact-checker called a reasoning model five times over 100k+ token contexts and failed a synopsis if any run flagged it, which was expensive and produced rationales misaligned with human annotators. The new approach cuts cost per synopsis by 52.4%, raises Recall–Fail from 0.77 to 0.86, and increases rationale overlap with humans from about 69% to about 82%.",
+        "keyIdea": "Factuality includes statements that are technically true but misleading through emphasis or phrasing. On a hand-labelled benchmark with human rationales, repeated holistic runs agreed on blatantly true or false synopses but were much more likely to disagree on nuanced ones, which raised the question of whether five calls are needed.",
+        "whyItMatters": "It shows how a custom benchmark with human rationales can expose where an LLM-as-judge pipeline wastes money and where its reasoning diverges from experts, so you can fix both cost and quality.",
+        "tags": [
+          "llm-evaluation",
+          "nlp",
+          "cost-optimization"
+        ],
+        "verifyNotes": "Softened 'only disagree on these nuanced cases' to 'agreed on blatant cases, much more likely to disagree on nuanced ones'. Removed the unsupported conclusion that blanket resampling wastes cost on easy cases; the source only asks whether five calls are needed. Changed 'redesigned system' to 'new approach'.",
+        "kind": "ai",
+        "title": "Fact-Checking at Scale: Building a More Accurate and Efficient Synopsis Factuality System",
+        "source": "Netflix Tech Blog",
+        "url": "https://netflixtechblog.com/fact-checking-at-scale-building-a-more-accurate-and-efficient-synopsis-factuality-system-d7d85859d808?source=rss----2615bd06b42e---4",
+        "track": "systems",
+        "publishedAt": "2026-11-09T17:01:02.000Z",
+        "minutes": 13,
+        "whySelected": "Netflix's production system for checking LLM-generated synopses for factual errors, covering evaluation accuracy and cost."
+      },
+      {
+        "id": "c0212b2cac",
+        "tldr": "Coding agents moved the bottleneck from writing code to reviewing it, so LinkedIn built an in-house AI reviewer that covers more than 40,000 PRs in a typical week, with most reviews posted before the first human reviewer opens the PR. It uses partial automation: AI does the first pass and humans still approve changes.",
+        "keyIdea": "A useful AI review comment must be grounded (real problems in changed lines), high-signal (real bugs and high-risk lines, not linter-style nits), codebase-aware (follows the codebase's own conventions), and timely (posted while the author can still act). Getting all four at once is the hard part.",
+        "whyItMatters": "As agents produce more code, fixed human review hours become the limiting factor. The three options (buy a vendor reviewer, use an off-the-shelf model with your rules, or build a custom multi-agent system) trade ease of setup against control over comment quality.",
+        "tags": [
+          "code-review",
+          "ai-agents",
+          "developer-productivity"
+        ],
+        "verifyNotes": "Replaced the unsupported claim that the choice 'directly affects delivery speed and risk' with the source's stated trade-off: ease of setup versus control over comment quality. Added a definition for 'timely'. Changed 'approve merges' to 'approve changes' and 'first human' to 'first human reviewer'.",
+        "kind": "ai",
+        "title": "How LinkedIn Uses AI to Review 40,000 Pull Requests a Week",
+        "source": "ByteByteGo",
+        "url": "https://blog.bytebytego.com/p/how-linkedin-uses-ai-to-review-40000",
+        "track": "systems",
+        "publishedAt": "2026-11-09T16:30:44.000Z",
+        "minutes": 17,
+        "whySelected": "How LinkedIn runs AI code review on 40,000 PRs a week and posts most reviews before any human looks, a practical LLM deployment at scale."
+      },
+      {
+        "id": "a8f500d176",
+        "tldr": "Re-running test/verification-technique evals with GPT-6 Astra saturated the Zstd benchmark: over 99% full correctness for about $1 at medium effort, versus GPT-5.6 Sol's 63% at $3.50 (medium) and 77% at $5.50 (xhigh). Agents now apply techniques like structured fuzzing meaningfully, and on the harder Pandoc eval (25 runs per condition, about $90k) many techniques beat Default, though the data cannot say which ones truly do or why.",
+        "keyIdea": "Models often perform quite differently on larger tasks than on small ones, and even $90k of Pandoc runs leaves wide error bars. Small per-condition samples matter because looping agents are highly path-dependent, so claims that a testing technique helps agents need large-task evidence rather than plausible-sounding reasoning.",
+        "whyItMatters": "It warns against choosing agent testing strategies from intuition or saturated benchmarks: the evidence shifts with model capability and task size, and is expensive to gather.",
+        "tags": [
+          "ai-agents",
+          "testing",
+          "evaluation"
+        ],
+        "verifyNotes": "Paired Sol's figures correctly (63% at $3.50 medium, 77% at $5.50 xhigh) instead of merged ranges. Clarified that wide error bars stem from small per-condition samples combined with path dependence, rather than path dependence alone. Softened 'do not carry over' to 'perform quite differently'.",
+        "kind": "ai",
+        "title": "Test and verification technique effectiveness with GPT-6 Astra",
+        "source": "Dan Luu",
+        "url": "https://danluu.com/astra-testing/",
+        "track": "systems",
+        "publishedAt": "2026-11-02T00:00:00.000Z",
+        "minutes": 21,
+        "whySelected": "An empirical look at how well the latest coding agents actually use testing and verification techniques."
+      }
+    ],
+    "concept": {
+      "track": "Distributed Systems",
+      "title": "Consistency Models: Linearizable, Causal, Eventual, and What CAP Actually Says",
+      "minutes": 12,
+      "intro": "Once data is replicated, replicas disagree for some window of time. A consistency model is the contract that says what a read may return during that window. The choice shows up as everyday bugs. A user saves their profile, refreshes, and sees the old version. Two nodes both believe they hold the same lock. A reply appears before the post it answers. The choice also sets your latency floor and what happens during a network partition. Senior engineers rarely pick one model for a whole system. They decide which invariants need strong guarantees and pay for coordination only there.",
+      "sections": [
+        {
+          "heading": "Prerequisites: replication lag and what a consistency model is",
+          "body": "Replication copies data to several nodes for durability, read scaling, and locality. Copies cannot update at the same instant because messages take time. Typical round-trip times are about 0.5 ms inside one availability zone, 1-2 ms across zones in a region, about 70-90 ms between US-East and Western Europe, and 150-250 ms between the US and Asia-Pacific. Asynchronous replicas under load commonly lag by milliseconds to seconds. During incidents the lag can reach minutes.\n\nA consistency model is a set of allowed histories. A history is the sequence of reads and writes clients observe, with their start and end times. A stronger model allows fewer outcomes, so application code is simpler to reason about. Enforcing it costs more coordination, which means more round trips and less availability during failures.\n\nDo not mix up three different meanings of 'consistency'. The C in ACID means application invariants hold, such as no negative balance. Isolation levels such as serializability describe how multi-object transactions interleave. Consistency models such as linearizability describe recency and ordering of operations on replicated objects. Strict serializability is serializability plus linearizability's real-time ordering, and it is what Spanner calls external consistency."
+        },
+        {
+          "heading": "Linearizability: behaves like a single copy",
+          "body": "Linearizability means every operation appears to take effect atomically at a single point between its invocation and its response. That order also respects real time: if operation A completes before operation B starts, B must observe A's effects. Put simply, once any client has seen a write acknowledged or has read a new value, no client can afterwards read an older value. Linearizability is composable, so if each object is linearizable, the whole system of objects is too.\n\nYou need it for leader election, distributed locks, uniqueness constraints such as one account per username, and compare-and-set on balances or inventory. These are cases where two nodes acting on stale information causes a correctness failure rather than a cosmetic glitch. etcd provides linearizable reads and writes by default (reads use Raft's ReadIndex). ZooKeeper makes writes linearizable, but a read served by a follower can be stale unless the client calls sync first.\n\nThe cost is coordination. Typically this means a consensus protocol such as Raft or Paxos, or a single leader that serves reads only after confirming it is still leader. Attiya and Welch proved a lower bound: for a linearizable register, read latency plus write latency is at least the network delay d. Spread a 5-node Raft group across three regions and every write waits for a cross-region majority, roughly 70-150 ms. One shortcut is dangerous. Quorums with R + W > N, as in Dynamo-style stores, are NOT linearizable on their own. Concurrent writes, partially applied writes, and last-write-wins resolution can still produce a newer read followed by an older read."
+        },
+        {
+          "heading": "Sequential and causal consistency: ordering without real time",
+          "body": "Sequential consistency requires all clients to see operations in one total order that matches each client's program order. It does not require that order to match real time. A client can therefore read a value that is stale relative to the wall clock, as long as everyone agrees on the order.\n\nCausal consistency is weaker. It uses Lamport's happens-before relation. Operation A happens before B if B's client had observed A, or issued A earlier, or the relation follows transitively. Every replica must show causally related operations in the same order. Concurrent operations, with no causal link, may appear in different orders on different replicas. Classic example: Alice posts 'I lost my job' and Bob replies 'sorry to hear that'. Under causal consistency nobody can see Bob's reply without Alice's post. Under eventual consistency they can.\n\nCausal consistency matters for one theoretical reason. Mahajan, Alvisi and Dahlin (2011) showed that real-time causal consistency is the strongest model a system can provide while staying available under any partition. Implementations track dependencies with vector clocks or explicit dependency lists, as COPS did. Metadata can grow with the number of replicas or clients, which is one reason few databases offer full causal consistency. MongoDB offers causal consistency within a client session."
+        },
+        {
+          "heading": "Eventual consistency and session guarantees",
+          "body": "Eventual consistency only promises that if writes stop, all replicas eventually converge to the same value. It sets no bound on how long that takes. It also says nothing about what reads return before convergence: a read can go backwards in time or miss your own write. It is a liveness property with no safety guarantee. It gives the lowest latency and the highest availability. Any replica can accept reads, and often writes, without talking to the others.\n\nConcurrent writes produce conflicts, and you must decide how to resolve them. Last-write-wins (LWW) by wall-clock timestamp is common and silently discards data. If node clocks differ by 50 ms, a write that really came later can lose to an earlier one. The alternatives are CRDTs (data types whose merges are commutative, associative, and idempotent, such as counters, sets, and sequences), keeping siblings and letting the application merge them as Amazon's original Dynamo did, or routing all writes for a key through one owner.\n\nYou can add session guarantees (Terry et al., 1994) on top of eventual consistency cheaply, for a single client. Read-your-writes: a client sees its own writes. Monotonic reads: a client never sees older data after newer data. Monotonic writes: one client's writes apply in order. Writes-follow-reads: a write is ordered after the writes the client had read. Common implementations are sticky routing to one replica, or a version token. With a token, the client keeps the log position of its last write, such as a Postgres LSN. A replica serves the read only if it has replayed past that position. Otherwise the read waits or goes to the leader. These guarantees fix most user-visible staleness bugs without global coordination."
+        },
+        {
+          "heading": "What CAP actually says",
+          "body": "Gilbert and Lynch formalised the CAP theorem in 2002 with narrow definitions. C is linearizability of a single read/write register. A means every request received by a non-failed node eventually gets a non-error response, with no time bound. P means the network may lose arbitrarily many messages between nodes. The theorem: if a partition occurs, a system cannot provide both C and A. The proof fits in one sentence. Split two nodes, write to one, read from the other. The second node either answers with stale data, losing C, or waits or errors, losing A.\n\nThe usual 'pick 2 of 3' framing is wrong. Partitions are not optional in a real network, so the actual choice is what to give up when one happens. 'CA' describes either a single node or a system that has not decided what to do during a partition. CAP is also narrower than people assume. It does not address latency, normal operation, multi-object transactions, or models other than linearizability. It does not say an AP system must be eventually consistent, because causal consistency is achievable.\n\nCAP availability is also stricter than operational availability. A Raft cluster is 'CP', yet during a partition the majority side keeps serving requests normally. Only clients cut off with the minority see errors. Many real systems fit neither label. Example: a Postgres primary with asynchronous replicas and reads routed to replicas. It is not linearizable even with no partition. It also cannot accept writes on the replica side of a partition. Describe a system by its actual guarantees, not by a CAP letter pair."
+        },
+        {
+          "heading": "PACELC: the trade-off you pay every day",
+          "body": "Daniel Abadi's PACELC extends CAP. If there is a Partition, choose Availability or Consistency. Else, in normal operation, choose Latency or Consistency. The second half matters more in practice, because partitions are rare and latency is constant. Every strongly consistent read either contacts the leader or a quorum, or waits out clock uncertainty.\n\nConcrete examples:\n- **DynamoDB:** reads are eventually consistent by default. A strongly consistent read costs twice the read capacity (1 RCU per 4 KB versus 0.5) and is not supported on global secondary indexes.\n- **Cassandra:** consistency is set per query. LOCAL_QUORUM keeps latency inside one region. EACH_QUORUM adds a cross-region round trip. Lightweight transactions use Paxos and need about four round trips for a linearizable compare-and-set.\n- **Spanner:** provides external consistency by assigning commit timestamps from TrueTime, a clock API with bounded uncertainty. Each commit then waits out that uncertainty, typically a few milliseconds.\n- **Amazon S3:** has provided strong read-after-write consistency since December 2020."
+        },
+        {
+          "heading": "How to choose: what a senior engineer actually does",
+          "body": "1. **List the invariants.** Ask which invariants cause real damage if two nodes act on stale data: money, inventory, uniqueness, locks, leader election, idempotency keys. Put those in a store with linearizable operations, such as a single-leader database queried on the leader, etcd or ZooKeeper, Spanner, or a conditional write in DynamoDB. Keep that coordinated core small.\n2. **Default the rest to cheaper models.** Feeds, counters, caches, analytics, and search indexes can use eventual consistency plus session guarantees, especially read-your-writes and monotonic reads. These remove most of the bugs users notice.\n3. **Measure replication lag.** 'Eventual' is not 'a few ms'. Track replica lag as a metric, alert on it, and decide what the application does when it is 30 seconds.\n4. **Fence distributed locks.** A lock service cannot stop a process that is paused, for example by a 10-second garbage-collection pause, from waking up and acting after its lease has expired. Issue a monotonically increasing fencing token with each lock grant. Have the storage layer reject writes that carry an older token.\n\nWhat to do differently from many teams: do not treat 'strongly consistent' as a vendor checkbox. Ask exactly which operations are linearizable, under which settings, and at what latency."
+        }
+      ],
+      "diagram": "Single register x, initially 0. Time flows left to right.\n\nClient A:  [---- write x=1 ----]ack\nClient C:            [-- read x --] -> 0 or 1   both allowed (overlaps the write)\nClient B:                              [-- read x --] -> 0\n                                       starts after ack: NOT linearizable,\n                                       allowed under eventual consistency\n\nStrength (stronger = fewer allowed outcomes, more coordination):\nstrict serializable > linearizable > sequential > causal > session guarantees > eventual",
+      "commonMistakes": [
+        "Treating CAP as 'pick any 2 of 3' or calling a distributed database 'CA'. Partitions will happen; the only question is whether you give up consistency or availability when they do.",
+        "Assuming quorum reads and writes with R + W > N are linearizable. Without extra mechanisms such as read repair before returning or consensus, concurrent and partially applied writes can still produce stale or non-monotonic reads.",
+        "Confusing linearizability (recency of single-object operations) with serializability (isolation of multi-object transactions) or with the C in ACID. They are separate guarantees, and a system can provide one without the others.",
+        "Treating eventual consistency as 'consistent after a few milliseconds' and resolving conflicts with wall-clock last-write-wins. Lag has no bound, and clock skew silently drops writes. Measure lag and pick conflict resolution deliberately."
+      ],
+      "interviewQuestions": [
+        "A user edits their profile, refreshes, and sees the old data. Reads go to async replicas. How do you fix it without sending all reads to the primary? Hint: read-your-writes via a version or LSN token, so a replica serves the read only once it has caught up; otherwise fall back to the primary for that user for a short window.",
+        "Why does a distributed lock need a linearizable store, and why is that still not enough on its own? Hint: lock state must not be stale, but a client paused past its lease can still write, so the storage layer must check a monotonically increasing fencing token.",
+        "You run in three regions and product wants globally unique usernames with low signup latency. What are your options? Hint: uniqueness needs consensus, which costs a cross-region round trip; or partition the username space by home region; or reserve optimistically and resolve conflicts asynchronously with a compensation step."
+      ],
+      "questions": [
+        "What does linearizability require that sequential consistency does not?",
+        "In Gilbert and Lynch's formal proof of CAP, what exactly do C and A mean, and why is P not a choice?",
+        "Name the four session guarantees and one way to implement read-your-writes on top of asynchronous replicas."
+      ]
+    }
+  },
+  "english": {
+    "words": [
+      {
+        "word": "clarify",
+        "level": "basic",
+        "pos": "verb",
+        "ipa": "/ˈklærɪfaɪ/",
+        "syllables": "clar-i-fy",
+        "meaning": "To make something easier to understand by explaining it more clearly or giving more detail.",
+        "examples": [
+          "Can you clarify what you mean by 'done'? Does it include tests?",
+          "Before we estimate, let's clarify which teams own the API changes."
+        ],
+        "synonyms": [
+          "explain",
+          "spell out",
+          "make clear"
+        ],
+        "commonMistake": "Saying 'clarify about something'. 'Clarify' takes a direct object: 'clarify the requirement', not 'clarify about the requirement'.",
+        "etymology": "From Old French 'clarifier', from Latin 'clarus' (clear) + 'facere' (to make).",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "figure out",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ˌfɪɡjər ˈaʊt/",
+        "syllables": "fig-ure out",
+        "meaning": "To understand something or find the answer to a problem after thinking about it.",
+        "examples": [
+          "I still haven't figured out why the test only fails on CI.",
+          "Let's figure out who's on call this weekend before we leave the meeting."
+        ],
+        "synonyms": [
+          "work out",
+          "solve",
+          "make sense of"
+        ],
+        "commonMistake": "Putting a pronoun at the end: 'figure out it'. With pronouns, split the phrase: 'figure it out'.",
+        "etymology": "From 'figure' (Latin 'figura', shape or form). The sense 'calculate, then understand' grew in American English.",
+        "tier": "everyday words an educated speaker uses but learners often miss"
+      },
+      {
+        "word": "tricky",
+        "level": "basic",
+        "pos": "adj",
+        "ipa": "/ˈtrɪki/",
+        "syllables": "trick-y",
+        "meaning": "Difficult and needing care or skill, often because there are hidden problems.",
+        "examples": [
+          "Timezone handling is tricky, so let's add more tests around it.",
+          "Giving feedback to a senior colleague can be tricky."
+        ],
+        "synonyms": [
+          "delicate",
+          "awkward",
+          "challenging"
+        ],
+        "commonMistake": "Confusing it with 'tricked' (deceived). 'A tricky question' is a hard question. It is not a question that fooled you.",
+        "etymology": "From 'trick' (Old North French 'trique', deceit) + '-y'.",
+        "tier": "everyday words an educated speaker uses but learners often miss"
+      },
+      {
+        "word": "end up",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ˌend ˈʌp/",
+        "syllables": "end up",
+        "meaning": "To finally be in a situation or do something, often without planning it.",
+        "examples": [
+          "We ended up rewriting the whole module instead of patching it.",
+          "I ended up staying late to help with the release."
+        ],
+        "synonyms": [
+          "wind up",
+          "finish up",
+          "land up"
+        ],
+        "commonMistake": "Writing 'end up to do'. Use '-ing' or a noun phrase: 'ended up doing', 'ended up in a meeting'.",
+        "etymology": "From Old English 'ende' (end) + 'up'.",
+        "tier": "everyday words an educated speaker uses but learners often miss"
+      },
+      {
+        "word": "hold off",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ˌhoʊld ˈɔːf/",
+        "syllables": "hold off",
+        "meaning": "To delay doing something until a later time.",
+        "examples": [
+          "Let's hold off on merging until the security review is done.",
+          "I'll hold off on booking the flight until the dates are confirmed."
+        ],
+        "synonyms": [
+          "postpone",
+          "put off",
+          "wait"
+        ],
+        "commonMistake": "Saying 'hold off to merge'. Use 'hold off on' + noun or '-ing': 'hold off on merging'.",
+        "etymology": "From Old English 'healdan' (to keep, hold) + 'off'.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "on the same page",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ɒn ðə ˌseɪm ˈpeɪdʒ/",
+        "syllables": "on the same page",
+        "meaning": "Having the same understanding or agreeing about what needs to happen.",
+        "examples": [
+          "Before we start coding, I want to make sure we're all on the same page about the requirements.",
+          "My partner and I are finally on the same page about the move."
+        ],
+        "synonyms": [
+          "in agreement",
+          "aligned",
+          "of one mind"
+        ],
+        "commonMistake": "Saying 'in the same page'. The fixed phrase is 'on the same page'.",
+        "etymology": "20th-century American idiom: the image is of everyone reading the same page of a shared document.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "heads-down",
+        "level": "basic",
+        "pos": "adj",
+        "ipa": "/ˌhedz ˈdaʊn/",
+        "syllables": "heads-down",
+        "meaning": "Focused on your work without interruptions, meetings, or chat.",
+        "examples": [
+          "I'll be heads-down on the migration this afternoon, so ping me only if it's urgent.",
+          "She blocked out heads-down time every morning to write."
+        ],
+        "synonyms": [
+          "focused",
+          "deep in work",
+          "absorbed"
+        ],
+        "commonMistake": "Confusing it with 'heads-up' (a warning). 'Heads-down' is about focus. It is not a notice.",
+        "etymology": "From the image of someone with their head bent down over their work.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "walk through",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ˌwɔːk ˈθruː/",
+        "syllables": "walk through",
+        "meaning": "To explain something to someone step by step.",
+        "examples": [
+          "Can you walk me through how a request reaches the payment service?",
+          "Let me walk you through the slides before the client call."
+        ],
+        "synonyms": [
+          "explain step by step",
+          "take through",
+          "go over"
+        ],
+        "commonMistake": "Adding 'about': 'walk me through about the design'. Say 'walk me through the design'. The noun is one word: 'a walkthrough'.",
+        "etymology": "From theatre rehearsal, where actors 'walk through' a scene slowly before performing it.",
+        "tier": "tech-adjacent English: words used when explaining systems and decisions"
+      },
+      {
+        "word": "scope",
+        "level": "basic",
+        "pos": "noun",
+        "ipa": "/skoʊp/",
+        "syllables": "scope",
+        "meaning": "The range of work, features, or topics that a project or task includes.",
+        "examples": [
+          "Mobile support is out of scope for this release.",
+          "Let's narrow the scope so we can ship something by Friday."
+        ],
+        "synonyms": [
+          "range",
+          "extent",
+          "boundaries"
+        ],
+        "commonMistake": "Saying 'in the scope' or 'out of the scope' on its own. The fixed phrases are 'in scope' and 'out of scope', with no 'the'.",
+        "etymology": "From Italian 'scopo' (aim, purpose), from Greek 'skopos' (target).",
+        "tier": "tech-adjacent English: words used when explaining systems and decisions"
+      },
+      {
+        "word": "edge case",
+        "level": "basic",
+        "pos": "noun",
+        "ipa": "/ˈedʒ keɪs/",
+        "syllables": "edge case",
+        "meaning": "An unusual situation or input at the extreme limits of what a system expects, which may cause unexpected behaviour.",
+        "examples": [
+          "We missed an edge case where the user has an empty cart at checkout.",
+          "That's an edge case, so let's log it and handle it in a follow-up."
+        ],
+        "synonyms": [
+          "corner case",
+          "boundary condition",
+          "special case"
+        ],
+        "commonMistake": "Using it to mean 'bug'. An edge case is a scenario, and it is not necessarily broken.",
+        "etymology": "Engineering term for inputs at the edge of the expected operating range.",
+        "tier": "tech-adjacent English: words used when explaining systems and decisions"
+      },
+      {
+        "word": "outcome",
+        "level": "basic",
+        "pos": "noun",
+        "ipa": "/ˈaʊtkʌm/",
+        "syllables": "out-come",
+        "meaning": "The final result or effect of an action or process.",
+        "examples": [
+          "The outcome was a 30% drop in support tickets within two months.",
+          "Whatever the outcome of the interview, I learned a lot."
+        ],
+        "synonyms": [
+          "result",
+          "effect",
+          "consequence"
+        ],
+        "commonMistake": "Confusing 'outcome' with 'output'. Output is what you produce, such as features shipped. Outcome is the effect it has, such as users retained. Interviewers value outcomes.",
+        "etymology": "From 'out' + 'come'.",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "deliver",
+        "level": "basic",
+        "pos": "verb",
+        "ipa": "/dɪˈlɪvər/",
+        "syllables": "de-liv-er",
+        "meaning": "To complete and hand over work or results that were promised or expected.",
+        "examples": [
+          "My team delivered the new billing system two weeks ahead of schedule.",
+          "He always delivers on his promises."
+        ],
+        "synonyms": [
+          "ship",
+          "complete",
+          "provide"
+        ],
+        "commonMistake": "Mixing up 'deliver' and 'deliver on'. You 'deliver a feature' (direct object), but you 'deliver on a promise or commitment'.",
+        "etymology": "From Old French 'delivrer', from Latin 'de-' + 'liberare' (to set free).",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "fair point",
+        "level": "basic",
+        "pos": "phrase",
+        "ipa": "/ˌfer ˈpɔɪnt/",
+        "syllables": "fair point",
+        "meaning": "Used to admit that someone has made a reasonable argument, even if you don't fully agree.",
+        "examples": [
+          "Fair point, we haven't tested it under real traffic yet.",
+          "'You never cook on weekdays.' 'Okay, fair point.'"
+        ],
+        "synonyms": [
+          "good point",
+          "that's true",
+          "point taken"
+        ],
+        "commonMistake": "Treating it as full agreement. It concedes only part of the argument. Saying 'fair point' and then ignoring the point can sound dismissive.",
+        "etymology": "From Old English 'fæger' (pleasing, just) + Old French 'point'.",
+        "tier": "everyday words an educated speaker uses but learners often miss"
+      },
+      {
+        "word": "drill down",
+        "level": "intermediate",
+        "pos": "phrase",
+        "ipa": "/ˌdrɪl ˈdaʊn/",
+        "syllables": "drill down",
+        "meaning": "To look at something in more and more detail to find the real cause or information.",
+        "examples": [
+          "Let's drill down into the error logs for the EU region.",
+          "When we drilled down, most churn came from one onboarding step."
+        ],
+        "synonyms": [
+          "dig into",
+          "examine closely",
+          "zoom in on"
+        ],
+        "commonMistake": "Leaving out 'into' before the object: 'drill down the data'. Say 'drill down into the data'.",
+        "etymology": "From Dutch 'drillen' (to bore). The data-navigation sense comes from computing.",
+        "tier": "workplace and meeting language"
+      },
+      {
+        "word": "pivot",
+        "level": "intermediate",
+        "pos": "verb",
+        "ipa": "/ˈpɪvət/",
+        "syllables": "piv-ot",
+        "meaning": "To make a significant change in direction or strategy, usually in response to new information.",
+        "examples": [
+          "When the data showed low adoption, we pivoted from a mobile app to a browser extension.",
+          "After two years in QA, she pivoted into backend development."
+        ],
+        "synonyms": [
+          "shift",
+          "change course",
+          "redirect"
+        ],
+        "commonMistake": "Using it for small adjustments. 'Pivot' implies a major change of direction. For small changes, say 'adjust' or 'refine'.",
+        "etymology": "From French 'pivot' (a pin or hinge on which something turns).",
+        "tier": "interview language: describing impact, trade-offs and ownership"
+      },
+      {
+        "word": "scalable",
+        "level": "intermediate",
+        "pos": "adj",
+        "ipa": "/ˈskeɪləbəl/",
+        "syllables": "scal-a-ble",
+        "meaning": "Able to handle growing amounts of work or users efficiently without needing a redesign.",
+        "examples": [
+          "The current design works for 1,000 users, but it isn't scalable to a million.",
+          "We need a more scalable hiring process as the team grows."
+        ],
+        "synonyms": [
+          "expandable",
+          "extensible",
+          "growth-ready"
+        ],
+        "commonMistake": "Using it to mean 'big' or 'fast'. A scalable system copes with growth gracefully. It does not have to be large or fast today.",
+        "etymology": "From 'scale' (Latin 'scala', ladder) + '-able'.",
+        "tier": "tech-adjacent English: words used when explaining systems and decisions"
+      },
+      {
+        "word": "redundancy",
+        "level": "intermediate",
+        "pos": "noun",
+        "ipa": "/rɪˈdʌndənsi/",
+        "syllables": "re-dun-dan-cy",
+        "meaning": "In systems, extra copies or backup parts that keep things running if one part fails.",
+        "examples": [
+          "We added redundancy by running the database in three availability zones.",
+          "There's a lot of redundancy in this report, so let's cut the repeated sections."
+        ],
+        "synonyms": [
+          "duplication",
+          "backup capacity",
+          "failover"
+        ],
+        "commonMistake": "Missing the context. In systems it is a good thing (backup). In writing it is bad (repetition). In British English it also means losing your job ('he was made redundant').",
+        "etymology": "From Latin 'redundare' (to overflow).",
+        "tier": "tech-adjacent English: words used when explaining systems and decisions"
+      },
+      {
+        "word": "inadvertently",
+        "level": "intermediate",
+        "pos": "adv",
+        "ipa": "/ˌɪnədˈvɜːrtəntli/",
+        "syllables": "in-ad-ver-tent-ly",
+        "meaning": "Without intending to; by accident.",
+        "examples": [
+          "The config change inadvertently disabled caching for all users.",
+          "I inadvertently replied to the whole thread instead of just my manager."
+        ],
+        "synonyms": [
+          "accidentally",
+          "unintentionally",
+          "unwittingly"
+        ],
+        "commonMistake": "Using it to mean 'carelessly'. It only means 'without intending to'. It does not say whether someone was careless.",
+        "etymology": "From Latin 'in-' (not) + 'advertere' (to turn toward, pay attention).",
+        "tier": "everyday words an educated speaker uses but learners often miss"
+      }
+    ],
+    "grammar": {
+      "topic": "Subject-verb agreement with tricky subjects",
+      "minutes": 6,
+      "explanation": "The verb must agree with the real subject of the sentence, not with the noun closest to it. Key rules: (1) Ignore phrases between the subject and the verb: 'The list of bugs is long' (subject = list). (2) 'Each', 'every', 'everyone', 'nobody', 'either' and 'neither' take a singular verb: 'Each of the services has its own database.' (3) With 'either...or' and 'neither...nor', the verb agrees with the nearer subject: 'Neither the manager nor the developers were informed.' (4) Collective nouns such as team, company and management usually take a singular verb in American English: 'The team is shipping the feature on Friday.' (5) 'The number of' takes a singular verb, but 'a number of' takes a plural verb: 'The number of users is growing' vs. 'A number of users are complaining.' (6) Uncountable nouns such as data, software, feedback, information and code usually take a singular verb in everyday tech English: 'The feedback was helpful.' (7) In 'there is/there are', the verb agrees with the noun that follows it: 'There are two open pull requests.' Examples: 'One of the tests is failing.' 'Every endpoint requires authentication.' 'The quality of the logs makes debugging easier.' 'Neither the logs nor the metrics show the issue.' 'Our software runs on Linux.'",
+      "commonErrors": [
+        {
+          "wrong": "One of the tests are failing.",
+          "right": "One of the tests is failing.",
+          "why": "The subject is 'one', which is singular. 'Of the tests' is only a describing phrase."
+        },
+        {
+          "wrong": "Each of the developers have access to production.",
+          "right": "Each of the developers has access to production.",
+          "why": "'Each' is always singular, even when a plural noun follows it."
+        },
+        {
+          "wrong": "The number of incidents have decreased.",
+          "right": "The number of incidents has decreased.",
+          "why": "'The number of' is singular. Only 'a number of' takes a plural verb."
+        },
+        {
+          "wrong": "There is many reasons for this delay.",
+          "right": "There are many reasons for this delay.",
+          "why": "With 'there is/are', the verb agrees with the noun after it, and 'reasons' is plural."
+        },
+        {
+          "wrong": "The feedbacks from the client was positive.",
+          "right": "The feedback from the client was positive.",
+          "why": "'Feedback' is uncountable, so it has no plural form and takes a singular verb."
+        }
+      ],
+      "exercises": [
+        {
+          "type": "fill-blank",
+          "prompt": "The status of all the deployments ___ (be) shown on the dashboard.",
+          "answer": "is",
+          "explanation": "The subject is 'status' (singular). 'Of all the deployments' does not change the verb."
+        },
+        {
+          "type": "fill-blank",
+          "prompt": "Neither the tech lead nor the engineers ___ (know) why the build broke.",
+          "answer": "know",
+          "explanation": "With 'neither...nor', the verb agrees with the nearer subject, 'engineers', which is plural."
+        },
+        {
+          "type": "fill-blank",
+          "prompt": "A number of customers ___ (have) reported slow load times.",
+          "answer": "have",
+          "explanation": "'A number of' means 'several', so it takes a plural verb."
+        },
+        {
+          "type": "correct-the-sentence",
+          "prompt": "Everyone on the team have reviewed the design doc.",
+          "answer": "Everyone on the team has reviewed the design doc.",
+          "explanation": "'Everyone' is singular, and 'on the team' is a phrase between the subject and the verb."
+        },
+        {
+          "type": "correct-the-sentence",
+          "prompt": "The code in these two modules need refactoring.",
+          "answer": "The code in these two modules needs refactoring.",
+          "explanation": "'Code' is uncountable and singular. Ignore 'in these two modules'."
+        },
+        {
+          "type": "correct-the-sentence",
+          "prompt": "There's three blockers we need to discuss today.",
+          "answer": "There are three blockers we need to discuss today.",
+          "explanation": "'Blockers' is plural, so use 'there are'. Saying 'there's' with a plural noun is common in casual speech, but it is not correct in professional settings."
+        }
+      ]
+    },
+    "speaking": [
+      {
+        "context": "meeting",
+        "prompt": "Give a 1-2 minute stand-up update. Say what you finished yesterday, what you are working on today, and any blockers. Include at least one sentence that starts with 'One of the...' or 'Each of the...'.",
+        "tips": [
+          "Pause briefly before the verb and ask yourself what the real subject is.",
+          "Keep the structure simple: done, doing, blocked."
+        ],
+        "usefulPhrases": [
+          "Yesterday I wrapped up...",
+          "One of the integration tests is still failing, so...",
+          "I'm blocked on... and could use help from..."
+        ]
+      },
+      {
+        "context": "meeting",
+        "prompt": "Explain to your team why a release has to be delayed by two days. Give two reasons and propose a new plan.",
+        "tips": [
+          "Start with the conclusion, then give the reasons.",
+          "Use 'there are' plus a number to signal structure, for example 'There are two reasons.'"
+        ],
+        "usefulPhrases": [
+          "There are two main reasons for the delay.",
+          "The number of open bugs is higher than we expected.",
+          "What I'd propose is..."
+        ]
+      },
+      {
+        "context": "interview",
+        "prompt": "Answer the question 'Tell me about a challenging bug you fixed.' Describe the situation, what you did, and the result in 1-2 minutes.",
+        "tips": [
+          "Use the STAR structure: Situation, Task, Action, Result.",
+          "End with a measurable result or a lesson learned."
+        ],
+        "usefulPhrases": [
+          "The root cause turned out to be...",
+          "Neither the logs nor the metrics showed the problem at first, so I...",
+          "As a result, the error rate dropped by..."
+        ]
+      },
+      {
+        "context": "interview",
+        "prompt": "Explain what an API is to a non-technical interviewer, such as an HR manager, in simple words. Use an everyday analogy.",
+        "tips": [
+          "Avoid jargon, or define each technical term in one short sentence.",
+          "Use one clear analogy, such as a waiter taking orders between you and the kitchen."
+        ],
+        "usefulPhrases": [
+          "In simple terms, an API is...",
+          "Think of it like a waiter in a restaurant.",
+          "Each request gets a response that..."
+        ]
+      },
+      {
+        "context": "daily",
+        "prompt": "Tell a friend or colleague about your weekend in 1-2 minutes. Mention a group of people, such as your family or friends, and something everyone did together.",
+        "tips": [
+          "Use 'everyone' and 'each of us' with singular verbs, for example 'Everyone was tired.'",
+          "Use connecting words like 'then', 'after that' and 'in the end' so the story flows."
+        ],
+        "usefulPhrases": [
+          "Everyone in my family was...",
+          "Each of us had a chance to...",
+          "The best part of the trip was..."
+        ]
+      },
+      {
+        "context": "daily",
+        "prompt": "Describe your daily routine and how you balance work with personal time. Mention one habit you want to improve.",
+        "tips": [
+          "Use the present simple for routines, and remember the -s with he/she/it and singular subjects.",
+          "Give one concrete example instead of general statements."
+        ],
+        "usefulPhrases": [
+          "On a typical day, I...",
+          "Most of my time goes into...",
+          "One habit I'm trying to build is..."
+        ]
+      }
+    ],
+    "writing": [
+      {
+        "prompt": "Write a short Slack message (4-6 sentences) to your team summarizing the results of a production incident: what happened, the impact, and the next steps.",
+        "tip": "Check every verb. Find the real subject in sentences like 'The number of affected users was...' and 'Each of the services has...'."
+      },
+      {
+        "prompt": "Write a short paragraph (5-7 sentences) for a design doc explaining why your team chose one database over another.",
+        "tip": "Keep 'data' and 'software' singular, and make sure collective nouns like 'the team' take a singular verb, for example 'The team prefers...'."
+      }
+    ]
+  }
+}
